@@ -142,7 +142,7 @@ for (msg_id, msg_name), group in grouped:
                 )
 
                 is_float = "Float" in str(row["Data Type"]) if pd.notna(row["Data Type"]) else False
-                
+                print("Signal = ", str(row["Signal Name"]), " Length = ", int(row["Length"]), " Start Bit = ", int(row["Start Bit"]))
                 value_descriptions = None
                 if pd.notna(row["Signal Value Description"]):
                     value_descriptions = parse_value_descriptions(row["Signal Value Description"])
