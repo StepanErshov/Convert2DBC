@@ -157,8 +157,8 @@ for (msg_id, msg_name), group in grouped:
                     raw_initial=int(int(row["Initinal"], 16)),
                     raw_invalid = int(int(row["Invalid"], 16)) if pd.notna(row["Invalid"]) else None,
                     conversion=cantools.database.conversion.LinearConversion(
-                        scale=int(row["Factor"]) if pd.notna(row["Factor"]) else 1.0,
-                        offset=int(row["Offset"]) if pd.notna(row["Offset"]) else 0.0,
+                        scale = int(row["Factor"]) if pd.notna(row["Factor"]) and row["Factor"].is_integer() else float(row["Factor"]) if pd.notna(row["Factor"]) else 1.0,
+                        offset = int(row["Offset"]) if pd.notna(row["Offset"]) and row["Offset"].is_integer() else float(row["Offset"]) if pd.notna(row["Offset"]) else 0.0,
                         is_float=is_float
                     ),
                     comment=str(row["Description"]) if pd.notna(row["Description"]) else "",
