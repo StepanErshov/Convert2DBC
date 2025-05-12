@@ -106,11 +106,12 @@ new_df = pd.DataFrame({
     "Cycle Type": df["Msg Cycle Time (ms)\n报文周期时间"],
     "Send Type": df["Msg Send Type\n报文发送类型"],
     "Description": df["Signal Description\n信号描述"],
+    "Msg Length": df["Msg Length (Byte)\n报文长度"].ffill(),
     "Signal Value Description": df["Signal Value Description\n信号值描述"],
     "Senders": np.where(df["SGW_SG"] == "S", "SGW_SG", "CGW_SG"),
     "Revision": df_history["Revision Management\n版本管理"].apply(lambda x: x.split("版本")[-1] if pd.notna(x) else x)
 })
-
+# print(new_df)
 new_df["Message Name"] = new_df["Message Name"].ffill()
 new_df["Message ID"] = new_df["Message ID"].ffill()
 new_df = new_df.dropna(subset=["Signal Name"])
@@ -142,7 +143,7 @@ for (msg_id, msg_name), group in grouped:
                 )
 
                 is_float = "Float" in str(row["Data Type"]) if pd.notna(row["Data Type"]) else False
-                print("Signal = ", str(row["Signal Name"]), " Length = ", int(row["Length"]), " Start Bit = ", int(row["Start Bit"]))
+                # print("Signal = ", str(row["Signal Name"]), " Length = ", int(row["Length"]), " Start Bit = ", int(row["Start Bit"]))
                 value_descriptions = None
                 if pd.notna(row["Signal Value Description"]):
                     value_descriptions = parse_value_descriptions(row["Signal Value Description"])
@@ -199,7 +200,7 @@ for (msg_id, msg_name), group in grouped:
         message = cantools.database.can.Message(
             frame_id=frame_id,
             name=str(msg_name),
-            length=message_length,
+            length=int(row["Msg Length"]),
             signals=signals,
             sort_signals = None,
             cycle_time=int(row["Cycle Type"]) if pd.notna(row["Cycle Type"]) else None,
