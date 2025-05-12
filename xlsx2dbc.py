@@ -149,7 +149,7 @@ for (msg_id, msg_name), group in grouped:
 
                 signal = cantools.database.can.Signal(
                     name=str(row["Signal Name"]),
-                    start=int(row["Start Bit"]),
+                    start=start_bit,
                     length=int(row["Length"]),
                     byte_order=byte_order,
                     is_signed=bool(row["Is Signed"]),
