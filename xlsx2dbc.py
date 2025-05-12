@@ -162,8 +162,8 @@ for (msg_id, msg_name), group in grouped:
                         is_float=is_float
                     ),
                     comment=str(row["Description"]) if pd.notna(row["Description"]) else "",
-                    minimum=int(row["Min"]) if pd.notna(row["Min"]) else None,
-                    maximum=int(row["Max"]) if pd.notna(row["Max"]) else None,
+                    minimum=int(row["Min"]) if pd.notna(row["Min"]) and float(row["Min"]).is_integer() else (float(row["Min"]) if pd.notna(row["Min"]) else None),
+                    maximum=int(row["Max"]) if pd.notna(row["Max"]) and float(row["Max"]).is_integer() else (float(row["Max"]) if pd.notna(row["Max"]) else None),
                     unit=str(row["Unit"]) if pd.notna(row["Unit"]) else "",
                     receivers=[str(row["Receiver"])] if pd.notna(row["Receiver"]) else [],
                     is_multiplexer=False
