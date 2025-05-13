@@ -77,6 +77,7 @@ df = pd.read_excel(
     keep_default_na=True,
     engine="openpyxl"
 )
+
 df_history = pd.read_excel(
     "C:\\projects\\ATOM\\convert2dbc\\ATOM_CANFD_Matrix_SGW-CGW_V5.0.0_20250123.xlsx",
     sheet_name="History",
@@ -169,7 +170,7 @@ for (msg_id, msg_name), group in grouped:
                     is_multiplexer=False
                 )
 
-                print(row["Signal Name"], row["Start Byte"], signal.start, row["Start Bit"], signal.length, row["Length"])
+                # print(row["Signal Name"], row["Start Byte"], signal.start, row["Start Bit"], signal.length, row["Length"])
 
                 if value_descriptions:
                     signal.choices = value_descriptions
