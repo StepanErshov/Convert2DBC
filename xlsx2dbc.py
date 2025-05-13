@@ -8,19 +8,19 @@ from collections import OrderedDict
 from cantools.database.can import Node
 import re
 
-def calculate_start_bit(start_byte, start_bit, byte_order, length):
-    """Calculate start bit considering byte order and signal length."""
-    if byte_order == "motorola":
-        return (start_byte * 8) + (7 - (start_bit % 8))
-    return (start_byte * 8) + start_bit
+# def calculate_start_bit(start_byte, start_bit, byte_order, length):
+#     """Calculate start bit considering byte order and signal length."""
+#     if byte_order == "motorola":
+#         return (start_byte * 8) + (7 - (start_bit % 8))
+#     return (start_byte * 8) + start_bit
 
-def calculate_message_length(signals):
-    """Calculate minimum message length needed for all signals."""
-    max_bit = 0
-    for signal in signals:
-        end_bit = signal.start + signal.length
-        max_bit = max(max_bit, end_bit)
-    return (max_bit + 7) // 8
+# def calculate_message_length(signals):
+#     """Calculate minimum message length needed for all signals."""
+#     max_bit = 0
+#     for signal in signals:
+#         end_bit = signal.start + signal.length
+#         max_bit = max(max_bit, end_bit)
+#     return (max_bit + 7) // 8
 
 def parse_value_descriptions(desc_str):
     """Convert multi-line hex descriptions to single-line decimal format"""
@@ -136,12 +136,12 @@ for (msg_id, msg_name), group in grouped:
         for _, row in group.iterrows():
             try:
                 byte_order = "big_endian" if row["Byte Order"] == "Motorola MSB" else "little_endian"
-                start_bit = calculate_start_bit(
-                    int(row["Start Byte"]),
-                    int(row["Start Bit"]),
-                    byte_order,
-                    int(row["Length"])
-                )
+                # start_bit = calculate_start_bit(
+                #     int(row["Start Byte"]),
+                #     int(row["Start Bit"]),
+                #     byte_order,
+                #     int(row["Length"])
+                # )
 
                 is_float = "Float" in str(row["Data Type"]) if pd.notna(row["Data Type"]) else False
                 # print("Signal = ", str(row["Signal Name"]), " Length = ", int(row["Length"]), " Start Bit = ", int(row["Start Bit"]))
@@ -180,25 +180,25 @@ for (msg_id, msg_name), group in grouped:
                 print(f"Ошибка при создании сигнала {row['Signal Name']}: {str(e)}")
                 continue
 
-        used_bits = set()
-        overlap_found = False
-        for signal in signals:
-            start = signal.start
-            end = start + signal.length
-            for bit in range(start, end):
-                if bit in used_bits:
-                    print(f"Предупреждение: Перекрытие битов в сообщении {msg_name} (0x{frame_id:X}), сигнал {signal.name} (бит {bit})")
-                    overlap_found = True
-                    break
-                used_bits.add(bit)
-            if overlap_found:
-                break
+        # used_bits = set()
+        # overlap_found = False
+        # for signal in signals:
+        #     start = signal.start
+        #     end = start + signal.length
+        #     for bit in range(start, end):
+        #         if bit in used_bits:
+        #             print(f"Warning: Overlapping bits in message {msg_name} (0x{frame_id:X}), signal {signal.name} (Bit {bit})")
+        #             overlap_found = True
+        #             break
+        #         used_bits.add(bit)
+        #     if overlap_found:
+        #         break
         
-        if overlap_found:
-            print(f"Пропускаю сообщение {msg_name} (0x{frame_id:X}) из-за перекрытия битов")
-            continue
+        # if overlap_found:
+        #     print(f"Skipping message {msg_name} (0x{frame_id:X}) due to bit overlap")
+        #     continue
 
-        message_length = calculate_message_length(signals)
+        # message_length = calculate_message_length(signals)
 
         message = cantools.database.can.Message(
             frame_id=frame_id,
@@ -218,7 +218,7 @@ for (msg_id, msg_name), group in grouped:
         
         db.messages.append(message)
     except Exception as e:
-        print(f"Ошибка при создании сообщения {msg_name}: {str(e)}")
+        print(f"Error creating message {msg_name}: {str(e)}")
         continue
 
 all_revisions = new_df['Revision'].dropna()
@@ -230,11 +230,11 @@ global_comment = 'CM_ "' + ',\n'.join(revision_lines) + '";\n'
 output_file = "output.dbc"
 try:
     cantools.database.dump_file(db, output_file)
-    print(f"DBC-файл успешно создан: {output_file}")
+    print(f"DBC-file successfully created: {output_file}")
 
     with open(output_file, "a", encoding='utf-8') as f:
         f.write("\n")
         f.write(global_comment)
-    print(f"Глобальный комментарий добавлен в файл: {output_file}")
+    print(f"Global comment added to file: {output_file}")
 except Exception as e:
-    print(f"Ошибка при сохранении DBC файла: {str(e)}")
+    print(f"Error saving DBC file: {str(e)}")
