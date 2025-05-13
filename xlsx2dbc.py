@@ -134,7 +134,7 @@ for (msg_id, msg_name), group in grouped:
         signals = []
         for _, row in group.iterrows():
             try:
-                byte_order = "motorola" if row["Byte Order"] == "Motorola MSB" else "intel"
+                byte_order = "big_endian" if row["Byte Order"] == "Motorola MSB" else "little_endian"
                 start_bit = calculate_start_bit(
                     int(row["Start Byte"]),
                     int(row["Start Bit"]),
@@ -168,6 +168,8 @@ for (msg_id, msg_name), group in grouped:
                     receivers=[str(row["Receiver"])] if pd.notna(row["Receiver"]) else [],
                     is_multiplexer=False
                 )
+
+                print(row["Signal Name"], row["Start Byte"], signal.start, row["Start Bit"], signal.length, row["Length"])
 
                 if value_descriptions:
                     signal.choices = value_descriptions
