@@ -1,6 +1,7 @@
 import cantools
 import cantools.database
 import cantools.database.conversion
+import cantools.database.namedsignalvalue
 import numpy as np
 import pandas as pd
 from cantools.database.can.formats.dbc import DbcSpecifics, AttributeDefinition, Attribute
@@ -122,7 +123,7 @@ bus_users = ["SGW_SG", "CGW_SG"]
 
 grouped = new_df.groupby(["Message ID", "Message Name"])
 
-db = cantools.database.can.Database(version="V5.0.0", sort_signals=None)
+db = cantools.database.can.Database(version="V5.0.0", sort_signals=None, strict=False)
 db.dbc = DbcSpecifics()
 
 nodes = [Node(name=bus_name) for bus_name in bus_users]
