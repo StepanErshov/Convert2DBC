@@ -1,15 +1,9 @@
 import cantools
 import cantools.database
 import cantools.database.conversion
-import cantools.database.namedsignalvalue
 import numpy as np
 import pandas as pd
-from cantools.database.can.formats.dbc import (
-    DbcSpecifics,
-    AttributeDefinition,
-    Attribute,
-)
-from collections import OrderedDict
+from cantools.database.can.formats.dbc import DbcSpecifics
 from cantools.database.can import Node
 import re
 
