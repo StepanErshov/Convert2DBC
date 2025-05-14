@@ -4,7 +4,6 @@ Version: 1.0 (Beta)
 
 Last Updated: 2025-05-14
 
----
 
 ## Описание
 
@@ -16,7 +15,6 @@ Last Updated: 2025-05-14
 
  - Автоматическую валидацию имен и параметров по правилам CES.
 
----
 
 ## Поддерживаемые функции
 
@@ -38,7 +36,6 @@ Last Updated: 2025-05-14
     
     - Проверка порядка байт (Motorola MSB).
 
----
 
 ## Требования
 - Python 3.9+
@@ -48,3 +45,45 @@ Last Updated: 2025-05-14
   ```bash
   pip install cantools pandas openpyxl PyYAML
   ```
+
+## Как использовать
+### Подготовка Excel-файла:
+
+   Данные должны быть в листе Matrix.
+
+### Обязательные колонки:
+
+```
+Message ID, Message Name, Signal Name, Start Byte, Start Bit, Bit Length, Factor, Offset, Initinal Value(Hex), Invalid Value(Hex), Min Value, Max Value, Unit, Receiver, Byte Order, Data Type, Msg Cycle Time, Msg Send Type, Description, Msg Length, Signal Value Description, Senders
+```
+### Запуск конвертации:
+
+```bash
+python xlsx2dbc.py --input <file_name>.xlsx --output <file_name>.dbc
+```
+
+### Аргументы командной строки:
+
+| Аргумент | Описание |
+|---|---|
+| --input | Путь к Excel-файлу (обязательно). |
+| --output | Имя выходного DBC-файла. |
+| --validate | Включить валидацию (опционально). |
+
+## Ограничения
+`Beta-версия:`
+
+Не все типы данных (например, Float) полностью протестированы.
+
+Нет поддержки мультиплексных сигналов.
+
+`Требования к Excel:`
+
+Колонки должны строго соответствовать шаблону.
+
+## Планы по развитию
+ - Добавить поддержку ARXML.
+
+ - Интеграция с CI/CD (автопроверка при коммитах).
+
+ - Генерация отчетов в HTML/PDF.
