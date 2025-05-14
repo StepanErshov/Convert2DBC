@@ -45,6 +45,6 @@ Last Updated: 2025-05-14
 
 - Библиотеки:
 
-```bash
-pip install cantools pandas openpyxl PyYAML
-```
+  ```bash
+  pip install cantools pandas openpyxl PyYAML
+  ```
