@@ -6,7 +6,7 @@ import pandas as pd
 from cantools.database.can.formats.dbc import DbcSpecifics
 from cantools.database.can import Node
 import re
-
+# import argparse
 
 def parse_value_descriptions(desc_str):
     """Convert multi-line hex descriptions to single-line decimal format"""
@@ -58,6 +58,13 @@ def parse_value_descriptions(desc_str):
     except Exception as e:
         print(f"Error parsing value descriptions '{desc_str}': {str(e)}")
         return None
+
+# def parse_args():
+#     parser = argparse.ArgumentParser(description='Convert Excel-files to DBC-files')
+#     parser.add_argument('--input', required=True, help='Path to Excel-file')
+#     parser.add_argument('--output', default='output.dbc', help='Output name DBC-file')
+#     parser.add_argument('--validate', action='store_true', help='Start validation')
+#     return parser.parse_args()
 
 
 df = pd.read_excel(
@@ -247,3 +254,10 @@ try:
     print(f"Global comment added to file: {output_file}")
 except Exception as e:
     print(f"Error saving DBC file: {str(e)}")
+
+
+# if __name__ == '__main__':
+#     args = parse_args()
+#     print(f'Input file: {args.input}')
+#     print(f'Output file: {args.output}')
+#     print(f'Validate: {args.validate}')
