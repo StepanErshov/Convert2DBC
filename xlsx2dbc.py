@@ -61,14 +61,14 @@ def parse_value_descriptions(desc_str):
 
 
 df = pd.read_excel(
-    "C:\\projects\\ATOM\\convert2dbc\\ATOM_CANFD_Matrix_SGW-CGW_V5.0.0_20250123.xlsx",
+    "C:\\projects\\Convert2DBC\\ATOM_CANFD_Matrix_SGW-CGW_V5.0.0_20250123.xlsx",
     sheet_name="Matrix",
     keep_default_na=True,
     engine="openpyxl",
 )
 
 df_history = pd.read_excel(
-    "C:\\projects\\ATOM\\convert2dbc\\ATOM_CANFD_Matrix_SGW-CGW_V5.0.0_20250123.xlsx",
+    "C:\\projects\\Convert2DBC\\ATOM_CANFD_Matrix_SGW-CGW_V5.0.0_20250123.xlsx",
     sheet_name="History",
     keep_default_na=True,
     engine="openpyxl",
