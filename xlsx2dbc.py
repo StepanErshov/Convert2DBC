@@ -69,12 +69,20 @@ class ExcelToDBCConverter:
     def __init__(self, excel_path: str):
         self.excel_path = excel_path
         self.db = cantools.database.can.Database(
-            version="V5.0.0", 
+            version="", 
             sort_signals=None, 
             strict=False
         )
         self.db.dbc = DbcSpecifics()
-        self.bus_users = ["SGW_SG", "CGW_SG"]
+        df = pd.read_excel(
+            self.excel_path,
+            sheet_name="Matrix",
+            keep_default_na=True,
+            engine="openpyxl",
+        )
+        
+        self.bus_users = [col for col in df.columns 
+                         if any(val in ["S", "R"] for val in df[col].dropna().unique())]
         self._initialize_nodes()
         
     def _initialize_nodes(self):
@@ -101,6 +109,23 @@ class ExcelToDBCConverter:
 
         df_history = df_history.reindex(df.index)
 
+        senders = []
+        receivers = []
+        
+        for _, row in df.iterrows():
+            row_senders = []
+            row_receivers = []
+
+            for bus_user in self.bus_users:
+                if bus_user in df.columns:
+                    if pd.notna(row[bus_user]) and row[bus_user] == "S":
+                        row_senders.append(bus_user)
+                    elif pd.notna(row[bus_user]) and row[bus_user] == "R":
+                        row_receivers.append(bus_user)
+            
+            senders.append(",".join(row_senders) if row_senders else "")
+            receivers.append(",".join(row_receivers) if row_receivers else "")
+
         new_df = pd.DataFrame(
             {
                 "Message ID": df["Msg ID\n报文标识符"],
@@ -116,7 +141,7 @@ class ExcelToDBCConverter:
                 "Min": df["Signal Min. Value (phys)\n物理最小值"],
                 "Max": df["Signal Max. Value (phys)\n物理最大值"],
                 "Unit": df["Unit\n单位"],
-                "Receiver": np.where(df["SGW_SG"] == "R", "SGW_SG", "CGW_SG"),
+                "Receiver": receivers,
                 "Byte Order": df["Byte Order\n排列格式(Intel/Motorola)"],
                 "Data Type": df["Data Type\n数据类型"],
                 "Cycle Type": df["Msg Cycle Time (ms)\n报文周期时间"],
@@ -124,7 +149,7 @@ class ExcelToDBCConverter:
                 "Description": df["Signal Description\n信号描述"],
                 "Msg Length": df["Msg Length (Byte)\n报文长度"].ffill(),
                 "Signal Value Description": df["Signal Value Description\n信号值描述"],
-                "Senders": np.where(df["SGW_SG"] == "S", "SGW_SG", "CGW_SG"),
+                "Senders": senders,
             }
         )
 
@@ -154,6 +179,13 @@ class ExcelToDBCConverter:
                 value_descriptions = ValueDescriptionParser.parse(
                     row["Signal Value Description"]
                 )
+
+            receivers = []
+            if pd.notna(row["Receiver"]):
+                if isinstance(row["Receiver"], str):
+                    receivers = row["Receiver"].split(",")
+                else:
+                    receivers = [str(row["Receiver"])]
 
             signal = cantools.database.can.Signal(
                 name=str(row["Signal Name"]),
@@ -198,12 +230,10 @@ class ExcelToDBCConverter:
                     else (float(row["Max"]) if pd.notna(row["Max"]) else None)
                 ),
                 unit=str(row["Unit"]) if pd.notna(row["Unit"]) else "",
-                receivers=(
-                    [str(row["Receiver"])] if pd.notna(row["Receiver"]) else []
-                ),
+                receivers=receivers,
                 is_multiplexer=False,
             )
-
+            
             if value_descriptions:
                 signal.choices = value_descriptions
 
@@ -212,7 +242,7 @@ class ExcelToDBCConverter:
         except Exception as e:
             print(f"Ошибка при создании сигнала {row['Signal Name']}: {str(e)}")
             return None
-    
+
     def _create_message(self, msg_id: str, msg_name: str, group: pd.DataFrame) -> bool:
         try:
             frame_id = (
@@ -230,6 +260,14 @@ class ExcelToDBCConverter:
             if not signals:
                 return False
 
+            # Split senders by comma if it's a string
+            senders = []
+            if pd.notna(group["Senders"].iloc[0]):
+                if isinstance(group["Senders"].iloc[0], str):
+                    senders = group["Senders"].iloc[0].split(",")
+                else:
+                    senders = [str(group["Senders"].iloc[0])]
+
             message = cantools.database.can.Message(
                 frame_id=frame_id,
                 name=str(msg_name),
@@ -238,7 +276,7 @@ class ExcelToDBCConverter:
                 sort_signals=None,
                 cycle_time=int(group["Cycle Type"].iloc[0]) if pd.notna(group["Cycle Type"].iloc[0]) else None,
                 is_extended_frame=False,
-                senders=[str(group["Senders"].iloc[0])] if pd.notna(group["Senders"].iloc[0]) else [],
+                senders=senders,
                 is_fd=True,
                 bus_name="SGW-CGW",
                 protocol="CANFD",
@@ -252,6 +290,7 @@ class ExcelToDBCConverter:
         except Exception as e:
             print(f"Error creating message {msg_name}: {str(e)}")
             return False
+
     
     def convert(self, output_path: str = "output.dbc") -> bool:
         """Основной метод конвертации"""
