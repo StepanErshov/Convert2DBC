@@ -34,7 +34,7 @@ def xlsx_to_ldf(input_xlsx: str, output_ldf: str):
                 length=row[5],
                 signals={num: LinSignal("hui", 6, 4)}
             )
-            ldf.frames.append(current_frame)
+            ldf.frames.update({row[0]: current_frame})
     print(current_frame)
     #         ldf.frames.append(current_frame)
     #     elif row[6]:
