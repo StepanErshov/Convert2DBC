@@ -14,5 +14,6 @@ env/
 *.swo
 *.log
 *.out
+*.ldf
 test_results/
 docs/_build/
