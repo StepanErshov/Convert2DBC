@@ -9,9 +9,6 @@ import re
 import argparse
 from typing import Optional, Dict, List
 
-#TODO Need remove chines symbols
-#TODO Need delete chines symbols in Unit and paste default symbols
-
 class ValueDescriptionParser:
     
     @staticmethod
@@ -301,7 +298,7 @@ class ExcelToDBCConverter:
 
     
     def convert(self, output_path: str = "output.dbc") -> bool:
-        """Основной метод конвертации"""
+        """Main method convert"""
         try:
             df, all_revisions = self._load_excel_data()
             grouped = df.groupby(["Message ID", "Message Name"])
