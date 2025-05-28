@@ -9,6 +9,8 @@ import re
 import argparse
 from typing import Optional, Dict, List
 
+#TODO Need remove chines symbols
+#TODO Need delete chines symbols in Unit and paste default symbols
 
 class ValueDescriptionParser:
     
@@ -82,7 +84,8 @@ class ExcelToDBCConverter:
         )
         
         self.bus_users = [col for col in df.columns 
-                         if any(val in ["S", "R"] for val in df[col].dropna().unique())]
+                 if any(val in ["S", "R"] for val in df[col].dropna().unique()) 
+                 and col != "Unit\n单位"]
         self._initialize_nodes()
         
     def _initialize_nodes(self):
@@ -152,7 +155,11 @@ class ExcelToDBCConverter:
                 "Senders": senders,
             }
         )
-
+        
+        new_df["Unit"] = new_df["Unit"].astype(str)
+        new_df["Unit"] = new_df["Unit"].str.replace("Ω", "Ohm", regex=False)
+        new_df["Unit"] = new_df["Unit"].str.replace("℃", "degC", regex=False)
+        
         new_df["Message Name"] = new_df["Message Name"].ffill()
         new_df["Message ID"] = new_df["Message ID"].ffill()
         new_df = new_df.dropna(subset=["Signal Name"])
@@ -162,6 +169,9 @@ class ExcelToDBCConverter:
     
     def _create_signal(self, row: pd.Series) -> Optional[cantools.database.can.Signal]:
         try:
+            comment = str(row["Description"]) if pd.notna(row["Description"]) else ""
+            comment = re.sub(r'[\u4e00-\u9fff]+', '', comment)
+            comment = str.replace(comment, "/", "")
             byte_order = (
                 "big_endian"
                 if row["Byte Order"] == "Motorola MSB"
@@ -193,7 +203,7 @@ class ExcelToDBCConverter:
                 length=int(row["Length"]),
                 byte_order=byte_order,
                 is_signed=bool(row["Is Signed"]),
-                raw_initial=int(int(row["Initinal"], 16)),
+                raw_initial=int(int(row["Initinal"], 16) if int(row["Initinal"], 16) else 0),
                 raw_invalid=(
                     int(int(row["Invalid"], 16))
                     if pd.notna(row["Invalid"])
@@ -216,9 +226,7 @@ class ExcelToDBCConverter:
                     ),
                     is_float=is_float,
                 ),
-                comment=(
-                    str(row["Description"]) if pd.notna(row["Description"]) else ""
-                ),
+                comment=comment,
                 minimum=(
                     int(row["Min"])
                     if pd.notna(row["Min"]) and float(row["Min"]).is_integer()
@@ -306,9 +314,9 @@ class ExcelToDBCConverter:
 
             cantools.database.dump_file(self.db, output_path)
             
-            with open(output_path, "a", encoding="utf-8") as f:
-                f.write("\n")
-                f.write(global_comment)
+            # with open(output_path, "a", encoding="utf-8") as f:
+            #     f.write("\n")
+            #     f.write(global_comment)
                 
             print(f"DBC-file successfully created: {output_path}")
             return True
