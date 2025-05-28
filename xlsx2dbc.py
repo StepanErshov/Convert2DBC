@@ -1,16 +1,16 @@
 import cantools
 import cantools.database
 import cantools.database.conversion
-import numpy as np
 import pandas as pd
 from cantools.database.can.formats.dbc import DbcSpecifics
 from cantools.database.can import Node
 import re
 import argparse
-from typing import Optional, Dict, List
+from typing import Optional, Dict
+
 
 class ValueDescriptionParser:
-    
+
     @staticmethod
     def parse(desc_str: str) -> Optional[Dict[int, str]]:
         """Convert multi-line hex descriptions to single-line decimal format"""
@@ -64,13 +64,11 @@ class ValueDescriptionParser:
 
 
 class ExcelToDBCConverter:
-    
+
     def __init__(self, excel_path: str):
         self.excel_path = excel_path
         self.db = cantools.database.can.Database(
-            version="", 
-            sort_signals=None, 
-            strict=False
+            version="", sort_signals=None, strict=False
         )
         self.db.dbc = DbcSpecifics()
         df = pd.read_excel(
@@ -79,15 +77,18 @@ class ExcelToDBCConverter:
             keep_default_na=True,
             engine="openpyxl",
         )
-        
-        self.bus_users = [col for col in df.columns 
-                 if any(val in ["S", "R"] for val in df[col].dropna().unique()) 
-                 and col != "Unit\n单位"]
+
+        self.bus_users = [
+            col
+            for col in df.columns
+            if any(val in ["S", "R"] for val in df[col].dropna().unique())
+            and col != "Unit\n单位"
+        ]
         self._initialize_nodes()
-        
+
     def _initialize_nodes(self):
         self.db.nodes.extend([Node(name=bus_name) for bus_name in self.bus_users])
-    
+
     def _load_excel_data(self) -> pd.DataFrame:
         df = pd.read_excel(
             self.excel_path,
@@ -111,7 +112,7 @@ class ExcelToDBCConverter:
 
         senders = []
         receivers = []
-        
+
         for _, row in df.iterrows():
             row_senders = []
             row_receivers = []
@@ -122,9 +123,11 @@ class ExcelToDBCConverter:
                         row_senders.append(bus_user)
                     elif pd.notna(row[bus_user]) and row[bus_user] == "R":
                         row_receivers.append(bus_user)
-            
+
             senders.append(",".join(row_senders) if row_senders else "Vector__XXX")
-            receivers.append(",".join(row_receivers) if row_receivers else "Vector__XXX")
+            receivers.append(
+                ",".join(row_receivers) if row_receivers else "Vector__XXX"
+            )
 
         new_df = pd.DataFrame(
             {
@@ -152,27 +155,25 @@ class ExcelToDBCConverter:
                 "Senders": senders,
             }
         )
-        
+
         new_df["Unit"] = new_df["Unit"].astype(str)
         new_df["Unit"] = new_df["Unit"].str.replace("Ω", "Ohm", regex=False)
         new_df["Unit"] = new_df["Unit"].str.replace("℃", "degC", regex=False)
-        
+
         new_df["Message Name"] = new_df["Message Name"].ffill()
         new_df["Message ID"] = new_df["Message ID"].ffill()
         new_df = new_df.dropna(subset=["Signal Name"])
         new_df["Is Signed"] = new_df["Data Type"].str.contains("Signed", na=False)
-        
+
         return new_df, all_revisions
-    
+
     def _create_signal(self, row: pd.Series) -> Optional[cantools.database.can.Signal]:
         try:
             comment = str(row["Description"]) if pd.notna(row["Description"]) else ""
-            comment = re.sub(r'[\u4e00-\u9fff]+', '', comment)
+            comment = re.sub(r"[\u4e00-\u9fff]+", "", comment)
             comment = str.replace(comment, "/", "")
             byte_order = (
-                "big_endian"
-                if row["Byte Order"] == "Motorola MSB"
-                else "little_endian"
+                "big_endian" if row["Byte Order"] == "Motorola MSB" else "little_endian"
             )
 
             is_float = (
@@ -180,7 +181,7 @@ class ExcelToDBCConverter:
                 if pd.notna(row["Data Type"])
                 else False
             )
-            
+
             value_descriptions = None
             if pd.notna(row["Signal Value Description"]):
                 value_descriptions = ValueDescriptionParser.parse(
@@ -200,26 +201,22 @@ class ExcelToDBCConverter:
                 length=int(row["Length"]),
                 byte_order=byte_order,
                 is_signed=bool(row["Is Signed"]),
-                raw_initial=int(int(row["Initinal"], 16) if int(row["Initinal"], 16) else 0),
+                raw_initial=int(
+                    int(row["Initinal"], 16) if int(row["Initinal"], 16) else 0
+                ),
                 raw_invalid=(
-                    int(int(row["Invalid"], 16))
-                    if pd.notna(row["Invalid"])
-                    else None
+                    int(int(row["Invalid"], 16)) if pd.notna(row["Invalid"]) else None
                 ),
                 conversion=cantools.database.conversion.LinearConversion(
                     scale=(
                         int(row["Factor"])
                         if pd.notna(row["Factor"]) and row["Factor"].is_integer()
-                        else (
-                            float(row["Factor"]) if pd.notna(row["Factor"]) else 1.0
-                        )
+                        else (float(row["Factor"]) if pd.notna(row["Factor"]) else 1.0)
                     ),
                     offset=(
                         int(row["Offset"])
                         if pd.notna(row["Offset"]) and row["Offset"].is_integer()
-                        else (
-                            float(row["Offset"]) if pd.notna(row["Offset"]) else 0.0
-                        )
+                        else (float(row["Offset"]) if pd.notna(row["Offset"]) else 0.0)
                     ),
                     is_float=is_float,
                 ),
@@ -238,14 +235,14 @@ class ExcelToDBCConverter:
                 receivers=receivers,
                 is_multiplexer=False,
             )
-            
+
             if value_descriptions:
                 signal.choices = value_descriptions
 
             return signal
-            
+
         except Exception as e:
-            print(f"Ошибка при создании сигнала {row['Signal Name']}: {str(e)}")
+            print(f"Error creating signal {row['Signal Name']}: {str(e)}")
             return None
 
     def _create_message(self, msg_id: str, msg_name: str, group: pd.DataFrame) -> bool:
@@ -279,24 +276,31 @@ class ExcelToDBCConverter:
                 length=int(group["Msg Length"].iloc[0]),
                 signals=signals,
                 sort_signals=None,
-                cycle_time=int(group["Cycle Type"].iloc[0]) if pd.notna(group["Cycle Type"].iloc[0]) else None,
+                cycle_time=(
+                    int(group["Cycle Type"].iloc[0])
+                    if pd.notna(group["Cycle Type"].iloc[0])
+                    else None
+                ),
                 is_extended_frame=False,
                 senders=senders,
                 is_fd=True,
                 bus_name="SGW-CGW",
                 protocol="CANFD",
-                send_type=group["Send Type"].iloc[0] if pd.notna(group["Send Type"].iloc[0]) else None,
+                send_type=(
+                    group["Send Type"].iloc[0]
+                    if pd.notna(group["Send Type"].iloc[0])
+                    else None
+                ),
                 comment=None,
             )
 
             self.db.messages.append(message)
             return True
-            
+
         except Exception as e:
             print(f"Error creating message {msg_name}: {str(e)}")
             return False
 
-    
     def convert(self, output_path: str = "output.dbc") -> bool:
         """Main method convert"""
         try:
@@ -310,23 +314,23 @@ class ExcelToDBCConverter:
             global_comment = 'CM_ "' + ",\n".join(revision_lines) + '" ;\n'
 
             cantools.database.dump_file(self.db, output_path)
-            
+
             # with open(output_path, "a", encoding="utf-8") as f:
             #     f.write("\n")
             #     f.write(global_comment)
-                
+
             print(f"DBC-file successfully created: {output_path}")
             return True
-            
+
         except Exception as e:
             print(f"Error during conversion: {str(e)}")
             return False
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Convert Excel-files to DBC-files')
-    parser.add_argument('--input', required=True, help='Path to Excel-file')
-    parser.add_argument('--output', default='output.dbc', help='Output name DBC-file')
+    parser = argparse.ArgumentParser(description="Convert Excel-files to DBC-files")
+    parser.add_argument("--input", required=True, help="Path to Excel-file")
+    parser.add_argument("--output", default="output.dbc", help="Output name DBC-file")
     args = parser.parse_args()
 
     converter = ExcelToDBCConverter(args.input)
@@ -336,5 +340,5 @@ def main():
         print("Conversion failed")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
