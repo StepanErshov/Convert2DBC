@@ -123,8 +123,8 @@ class ExcelToDBCConverter:
                     elif pd.notna(row[bus_user]) and row[bus_user] == "R":
                         row_receivers.append(bus_user)
             
-            senders.append(",".join(row_senders) if row_senders else "Vector_XXX")
-            receivers.append(",".join(row_receivers) if row_receivers else "Vector_XXX")
+            senders.append(",".join(row_senders) if row_senders else "Vector__XXX")
+            receivers.append(",".join(row_receivers) if row_receivers else "Vector__XXX")
 
         new_df = pd.DataFrame(
             {
