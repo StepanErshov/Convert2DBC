@@ -1,4 +1,5 @@
 import cantools
+import cantools.autosar
 import cantools.database
 import cantools.database.conversion
 import pandas as pd
@@ -132,8 +133,8 @@ class ExcelToDBCConverter:
 
         new_df = pd.DataFrame(
             {
-                "Message ID": df["Msg ID\n报文标识符"],
-                "Message Name": df["Msg Name\n报文名称"],
+                "Message ID": df["Msg ID\n报文标识符"].ffill(),
+                "Message Name": df["Msg Name\n报文名称"].ffill(),
                 "Signal Name": df["Signal Name\n信号名称"],
                 "Start Byte": df["Start Byte\n起始字节"],
                 "Start Bit": df["Start Bit\n起始位"],
@@ -148,8 +149,8 @@ class ExcelToDBCConverter:
                 "Receiver": receivers,
                 "Byte Order": df["Byte Order\n排列格式(Intel/Motorola)"],
                 "Data Type": df["Data Type\n数据类型"],
-                "Cycle Type": df["Msg Cycle Time (ms)\n报文周期时间"],
-                "Send Type": df["Msg Send Type\n报文发送类型"],
+                "Cycle Type": df["Msg Cycle Time (ms)\n报文周期时间"].ffill(),
+                "Send Type": df["Msg Send Type\n报文发送类型"].ffill(),
                 "Description": df["Signal Description\n信号描述"],
                 "Msg Length": df["Msg Length (Byte)\n报文长度"].ffill(),
                 "Signal Value Description": df["Signal Value Description\n信号值描述"],
@@ -161,8 +162,6 @@ class ExcelToDBCConverter:
         new_df["Unit"] = new_df["Unit"].str.replace("Ω", "Ohm", regex=False)
         new_df["Unit"] = new_df["Unit"].str.replace("℃", "degC", regex=False)
 
-        new_df["Message Name"] = new_df["Message Name"].ffill()
-        new_df["Message ID"] = new_df["Message ID"].ffill()
         new_df = new_df.dropna(subset=["Signal Name"])
         new_df["Is Signed"] = new_df["Data Type"].str.contains("Signed", na=False)
 
@@ -273,7 +272,7 @@ class ExcelToDBCConverter:
                     senders = group["Senders"].iloc[0].split(",")
                 else:
                     senders = [str(group["Senders"].iloc[0])]
-            # print(group["Cycle Type"].iloc[0] if pd.notna(group["Cycle Type"].iloc[0]) else None)
+
             message = cantools.database.can.Message(
                 frame_id=frame_id,
                 name=str(msg_name),
@@ -288,8 +287,8 @@ class ExcelToDBCConverter:
                 is_extended_frame=False,
                 senders=senders,
                 is_fd=True,
-                bus_name="SGW-CGW",
-                protocol="CANFD",
+                bus_name=ExcelToDBCConverter.get_file_info(self.excel_path.name)["domain_name"],
+                protocol="CAN" if str(self.excel_path.name).find("_CAN_") else "CANFD",
                 send_type=(
                     group["Send Type"].iloc[0]
                     if pd.notna(group["Send Type"].iloc[0])
@@ -299,6 +298,7 @@ class ExcelToDBCConverter:
             )
 
             self.db.messages.append(message)
+            print(message.name, message.send_type)
             return True
 
         except Exception as e:
