@@ -172,6 +172,9 @@ class ExcelToDBCConverter:
             comment = str(row["Description"]) if pd.notna(row["Description"]) else ""
             comment = re.sub(r"[\u4e00-\u9fff]+", "", comment)
             comment = str.replace(comment, "/", "")
+            comment = str.replace(comment, "\n", "")
+            unit=str(row["Unit"]) if pd.notna(row["Unit"]) else ""
+            unit = str.replace(unit, "nan", "")
             byte_order = (
                 "big_endian" if row["Byte Order"] == "Motorola MSB" else "little_endian"
             )
@@ -231,7 +234,7 @@ class ExcelToDBCConverter:
                     if pd.notna(row["Max"]) and float(row["Max"]).is_integer()
                     else (float(row["Max"]) if pd.notna(row["Max"]) else None)
                 ),
-                unit=str(row["Unit"]) if pd.notna(row["Unit"]) else "",
+                unit=unit,
                 receivers=receivers,
                 is_multiplexer=False,
             )
