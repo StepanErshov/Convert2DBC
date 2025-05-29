@@ -10,6 +10,13 @@ import os
 import argparse
 from typing import Optional, Dict
 
+# dbc_specifics=DbcSpecifics(attribute_definitions=cantools.database.can.attribute_definition.AttributeDefinition(
+#                     name="GenMsgSendType",
+#                     default_value="",
+#                     kind="SG_",
+#                     type_name="ENUM",
+#                     choices=["Cyclic", "Event", "CE"]
+#                 )),
 
 class ValueDescriptionParser:
 
@@ -70,7 +77,9 @@ class ExcelToDBCConverter:
     def __init__(self, excel_path: str):
         self.excel_path = excel_path
         self.db = cantools.database.can.Database(
-            version=ExcelToDBCConverter.get_file_info(excel_path.name)["version"], sort_signals=None, strict=False
+            version=ExcelToDBCConverter.get_file_info(excel_path.name)["version"], 
+            sort_signals=None, 
+            strict=False
         )
         self.db.dbc = DbcSpecifics()
         df = pd.read_excel(
@@ -157,14 +166,14 @@ class ExcelToDBCConverter:
                 "Senders": senders,
             }
         )
-
+        new_df["Send Type"] = new_df["Send Type"].astype(str).str.replace("Cycle", "Cyclic")
         new_df["Unit"] = new_df["Unit"].astype(str)
         new_df["Unit"] = new_df["Unit"].str.replace("Ω", "Ohm", regex=False)
         new_df["Unit"] = new_df["Unit"].str.replace("℃", "degC", regex=False)
 
         new_df = new_df.dropna(subset=["Signal Name"])
         new_df["Is Signed"] = new_df["Data Type"].str.contains("Signed", na=False)
-
+        print(new_df["Send Type"])
         return new_df, all_revisions
 
     def _create_signal(self, row: pd.Series) -> Optional[cantools.database.can.Signal]:
@@ -272,7 +281,6 @@ class ExcelToDBCConverter:
                     senders = group["Senders"].iloc[0].split(",")
                 else:
                     senders = [str(group["Senders"].iloc[0])]
-
             message = cantools.database.can.Message(
                 frame_id=frame_id,
                 name=str(msg_name),
@@ -286,9 +294,9 @@ class ExcelToDBCConverter:
                 ),
                 is_extended_frame=False,
                 senders=senders,
-                is_fd=True,
+                protocol=ExcelToDBCConverter.get_file_info(self.excel_path.name)["protocol"],
+                is_fd=True if ExcelToDBCConverter.get_file_info(self.excel_path.name)["protocol"] == "CANFD" else False,
                 bus_name=ExcelToDBCConverter.get_file_info(self.excel_path.name)["domain_name"],
-                protocol="CAN" if str(self.excel_path.name).find("_CAN_") else "CANFD",
                 send_type=(
                     group["Send Type"].iloc[0]
                     if pd.notna(group["Send Type"].iloc[0])
@@ -310,6 +318,16 @@ class ExcelToDBCConverter:
         file_start = 'ATOM_CAN_Matrix_'
         file_start1 = 'ATOM_CANFD_Matrix_' 
         file_name_only = os.path.splitext(os.path.basename(file_name))[0]
+        if file_name_only.startswith(file_start1):
+            protocol = 'CANFD'
+            start_index = 0
+            parts = file_name_only[len(file_start1):].split('_')
+        elif file_name_only.startswith(file_start):
+            protocol = 'CAN'
+            start_index = 0
+            parts = file_name_only[len(file_start):].split('_')
+        else:
+            return None
         if not (file_name_only.startswith(file_start) or file_name_only.startswith(file_start1)):
             return None
         start_index = file_name_only.find(file_start1)
@@ -334,14 +352,15 @@ class ExcelToDBCConverter:
         else:
             device_name = ''
 
-        return {'version': version, 'date': file_date, 'device_name': device_name, 'domain_name': domain_name}
+        return {'version': version, 'date': file_date, 'device_name': device_name, 'domain_name': domain_name, "protocol": protocol}
+
 
     def convert(self, output_path: str = "output.dbc") -> bool:
         """Main method convert"""
         try:
             df, all_revisions = self._load_excel_data()
             grouped = df.groupby(["Message ID", "Message Name"])
-
+            
             for (msg_id, msg_name), group in grouped:
                 self._create_message(msg_id, msg_name, group)
 
