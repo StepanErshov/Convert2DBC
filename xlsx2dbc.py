@@ -5,6 +5,7 @@ import pandas as pd
 from cantools.database.can.formats.dbc import DbcSpecifics
 from cantools.database.can import Node
 import re
+import os
 import argparse
 from typing import Optional, Dict
 
@@ -68,7 +69,7 @@ class ExcelToDBCConverter:
     def __init__(self, excel_path: str):
         self.excel_path = excel_path
         self.db = cantools.database.can.Database(
-            version="", sort_signals=None, strict=False
+            version=ExcelToDBCConverter.get_file_info(excel_path.name)["version"], sort_signals=None, strict=False
         )
         self.db.dbc = DbcSpecifics()
         df = pd.read_excel(
@@ -272,7 +273,7 @@ class ExcelToDBCConverter:
                     senders = group["Senders"].iloc[0].split(",")
                 else:
                     senders = [str(group["Senders"].iloc[0])]
-
+            # print(group["Cycle Type"].iloc[0] if pd.notna(group["Cycle Type"].iloc[0]) else None)
             message = cantools.database.can.Message(
                 frame_id=frame_id,
                 name=str(msg_name),
@@ -303,6 +304,37 @@ class ExcelToDBCConverter:
         except Exception as e:
             print(f"Error creating message {msg_name}: {str(e)}")
             return False
+        
+    
+    def get_file_info(file_name: str):
+        file_start = 'ATOM_CAN_Matrix_'
+        file_start1 = 'ATOM_CANFD_Matrix_' 
+        file_name_only = os.path.splitext(os.path.basename(file_name))[0]
+        if not (file_name_only.startswith(file_start) or file_name_only.startswith(file_start1)):
+            return None
+        start_index = file_name_only.find(file_start1)
+        if start_index != -1:
+            parts = file_name_only[start_index + len(file_start1):].split('_')
+        else:
+            parts = file_name_only[len(file_start):].split('_')
+        domain_name = parts.pop(0)
+        version_string = parts.pop(0)
+        if version_string.startswith('V'):
+            version = version_string[1:]
+            versions = version.split('.')
+            if len(versions) != 3:
+                return None
+        else:
+            return None
+        file_date = parts.pop(0)
+        if len(parts) > 0:
+            if parts[0] == 'internal': # skip it
+                parts.pop(0)
+            device_name = '_'.join(parts)
+        else:
+            device_name = ''
+
+        return {'version': version, 'date': file_date, 'device_name': device_name, 'domain_name': domain_name}
 
     def convert(self, output_path: str = "output.dbc") -> bool:
         """Main method convert"""
