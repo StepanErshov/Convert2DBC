@@ -40,3 +40,46 @@
 #     continue
 
 # message_length = calculate_message_length(signals)
+# import os
+# def get_file_info(file_name: str):
+#         file_start = 'ATOM_CAN_Matrix_'
+#         file_start1 = 'ATOM_CANFD_Matrix_' 
+#         file_name_only = os.path.splitext(os.path.basename(file_name))[0]
+#         if file_name_only.startswith(file_start1):
+#             protocol = 'CANFD'
+#             start_index = 0
+#             parts = file_name_only[len(file_start1):].split('_')
+#         elif file_name_only.startswith(file_start):
+#             protocol = 'CAN'
+#             start_index = 0
+#             parts = file_name_only[len(file_start):].split('_')
+#         else:
+#             protocol = ''
+#         if not (file_name_only.startswith(file_start) or file_name_only.startswith(file_start1)):
+#             return None
+#         start_index = file_name_only.find(file_start1)
+#         if start_index != -1:
+#             parts = file_name_only[start_index + len(file_start1):].split('_')
+#         else:
+#             parts = file_name_only[len(file_start):].split('_')
+#         domain_name = parts.pop(0)
+#         version_string = parts.pop(0)
+#         if version_string.startswith('V'):
+#             version = version_string[1:]
+#             versions = version.split('.')
+#             if len(versions) != 3:
+#                 return None
+#         else:
+#             version = ''
+#         file_date = parts.pop(0)
+#         if len(parts) > 0:
+#             if parts[0] == 'internal': # skip it
+#                 parts.pop(0)
+#             device_name = '_'.join(parts)
+#         else:
+#             device_name = ''
+
+#         return {'version': version, 'date': file_date, 'device_name': device_name, 'domain_name': domain_name, "protocol": protocol}
+
+
+# print(get_file_info("ATOM_CANFD_Matrix_CH_internal_V2.2.0_ACU"))
