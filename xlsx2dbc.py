@@ -10,13 +10,7 @@ import os
 import argparse
 from typing import Optional, Dict
 
-# dbc_specifics=DbcSpecifics(attribute_definitions=cantools.database.can.attribute_definition.AttributeDefinition(
-#                     name="GenMsgSendType",
-#                     default_value="",
-#                     kind="SG_",
-#                     type_name="ENUM",
-#                     choices=["Cyclic", "Event", "CE"]
-#                 )),
+#TODO need fix namespace in send_type in messages
 
 class ValueDescriptionParser:
 
