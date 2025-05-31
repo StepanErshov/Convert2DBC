@@ -5,6 +5,7 @@ import cantools.database.conversion
 import pandas as pd
 from cantools.database.can.formats.dbc import DbcSpecifics
 from cantools.database.can import Node
+from cantools.database.can.attribute_definition import AttributeDefinition
 import re
 import os
 import argparse
@@ -87,9 +88,20 @@ class ExcelToDBCConverter:
             and col != "Unit\n单位"
         ]
         self._initialize_nodes()
+        self._initialize_attr()
 
     def _initialize_nodes(self):
         self.db.nodes.extend([Node(name=bus_name) for bus_name in self.bus_users])
+    
+    def _initialize_attr(self):
+        self.attr_def = AttributeDefinition(
+                name="GenMsgSendType",
+                default_value="Cyclic",
+                kind="BO_",
+                type_name="ENUM",
+                choices=["Cyclic","Event","IfActive","CE","CA","NoMsgSendType"]
+            )
+        self.db.dbc.attribute_definitions["GenMsgSendType"] = self.attr_def
 
     def _load_excel_data(self) -> pd.DataFrame:
         df = pd.read_excel(
@@ -164,7 +176,7 @@ class ExcelToDBCConverter:
 
         new_df = new_df.dropna(subset=["Signal Name"])
         new_df["Is Signed"] = new_df["Data Type"].str.contains("Signed", na=False)
-        print(new_df["Send Type"])
+
         return new_df, all_revisions
 
     def _create_signal(self, row: pd.Series) -> Optional[cantools.database.can.Signal]:
@@ -285,6 +297,7 @@ class ExcelToDBCConverter:
                 ),
                 is_extended_frame=False,
                 senders=senders,
+                header_byte_order="big_endian",
                 protocol=ExcelToDBCConverter.get_file_info(self.excel_path.name)["protocol"],
                 is_fd=True if ExcelToDBCConverter.get_file_info(self.excel_path.name)["protocol"] == "CANFD" else False,
                 bus_name=ExcelToDBCConverter.get_file_info(self.excel_path.name)["domain_name"],
@@ -295,9 +308,9 @@ class ExcelToDBCConverter:
                 ),
                 comment=None,
             )
-
+            
             self.db.messages.append(message)
-            print(message.name, message.send_type)
+            # print(message.name, message.send_type)
             return True
 
         except Exception as e:
@@ -318,7 +331,7 @@ class ExcelToDBCConverter:
             start_index = 0
             parts = file_name_only[len(file_start):].split('_')
         else:
-            return None
+            protocol = ''
         if not (file_name_only.startswith(file_start) or file_name_only.startswith(file_start1)):
             return None
         start_index = file_name_only.find(file_start1)
@@ -334,7 +347,7 @@ class ExcelToDBCConverter:
             if len(versions) != 3:
                 return None
         else:
-            return None
+            version = ''
         file_date = parts.pop(0)
         if len(parts) > 0:
             if parts[0] == 'internal': # skip it
@@ -349,14 +362,14 @@ class ExcelToDBCConverter:
     def convert(self, output_path: str = "output.dbc") -> bool:
         """Main method convert"""
         try:
-            df, all_revisions = self._load_excel_data()
+            df, _ = self._load_excel_data()
             grouped = df.groupby(["Message ID", "Message Name"])
             
             for (msg_id, msg_name), group in grouped:
                 self._create_message(msg_id, msg_name, group)
 
-            revision_lines = [f"Revision:{rev}" for rev in all_revisions]
-            global_comment = 'CM_ "' + ",\n".join(revision_lines) + '" ;\n'
+            # revision_lines = [f"Revision:{rev}" for rev in all_revisions]
+            # global_comment = 'CM_ "' + ",\n".join(revision_lines) + '" ;\n'
 
             cantools.database.dump_file(self.db, output_path)
 
