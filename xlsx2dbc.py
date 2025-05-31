@@ -10,10 +10,7 @@ import os
 import argparse
 from typing import Optional, Dict
 
-#TODO need fix namespace in send_type in messages
-
 class ValueDescriptionParser:
-
     @staticmethod
     def parse(desc_str: str) -> Optional[Dict[int, str]]:
         """Convert multi-line hex descriptions to single-line decimal format"""
