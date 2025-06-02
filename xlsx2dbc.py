@@ -1,11 +1,12 @@
 import cantools
-import cantools.autosar
+from cantools.database.can.formats.arxml.message_specifics import AutosarMessageSpecifics
 import cantools.database
 import cantools.database.conversion
 import pandas as pd
 from cantools.database.can.formats.dbc import DbcSpecifics
-from cantools.database.can import Node
+from cantools.database.can.attribute import Attribute
 from cantools.database.can.attribute_definition import AttributeDefinition
+from cantools.database.can import Node
 import re
 import os
 import argparse
@@ -522,13 +523,39 @@ class ExcelToDBCConverter:
             if not signals:
                 return False
 
-            # Split senders by comma if it's a string
             senders = []
             if pd.notna(group["Senders"].iloc[0]):
                 if isinstance(group["Senders"].iloc[0], str):
                     senders = group["Senders"].iloc[0].split(",")
                 else:
                     senders = [str(group["Senders"].iloc[0])]
+            
+            # autosar_specifics = AutosarMessageSpecifics()
+            # autosar_specifics=autosar_specifics,
+            
+            send_type = (
+                    group["Send Type"].iloc[0]
+                    if pd.notna(group["Send Type"].iloc[0])
+                    else None
+                )
+            
+            send_type_map = {
+                "Cyclic": 0,
+                "Event": 1,
+                "IfActive": 2,
+                "CE": 3,
+                "CA": 4,
+                "NoMsgSendType": 5
+            }
+
+            send_type_str = (
+                group["Send Type"].iloc[0]
+                if pd.notna(group["Send Type"].iloc[0])
+                else "Cyclic"
+            )
+
+            send_type_int = send_type_map.get(send_type_str, 0)
+            attr_msg_send_type = Attribute(value=send_type_int, definition=self.attr_def_msg_send_type)
 
             message = cantools.database.can.Message(
                 frame_id=frame_id,
@@ -536,17 +563,14 @@ class ExcelToDBCConverter:
                 length=int(group["Msg Length"].iloc[0]),
                 signals=signals,
                 senders=senders,
-                send_type=(
-                    group["Send Type"].iloc[0]
-                    if pd.notna(group["Send Type"].iloc[0])
-                    else None
-                ),
+                send_type=send_type,
                 cycle_time=(
                     int(group["Cycle Type"].iloc[0])
                     if pd.notna(group["Cycle Type"].iloc[0])
                     else None
                 ),
-                dbc_specifics = DbcSpecifics(),
+                dbc_specifics = DbcSpecifics(attributes={"GenMsgSendType": attr_msg_send_type}),
+                # autosar_specifics=AutosarMessageSpecifics(attr_msg_send_type),
                 is_extended_frame=False,
                 header_byte_order="big_endian",
                 protocol=ExcelToDBCConverter.get_file_info(self.excel_path.name)["protocol"],
@@ -555,18 +579,18 @@ class ExcelToDBCConverter:
                 comment=None,
                 sort_signals=None,
             )
-            
+
             if msg_id.startswith("0x7"):
                 diag.append(message)
             elif msg_id.startswith("0x5"):
                 nm.append(message)
             else:
                 normal.append(message)
-            
-            self.db.messages.append(message)
-            # print(message.name, message.send_type)
-            return True
 
+            self.db.messages.append(message)
+            
+            return True
+            
         except Exception as e:
             print(f"Error creating message {msg_name}: {str(e)}")
             return False
