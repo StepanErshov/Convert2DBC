@@ -107,7 +107,9 @@ class ExcelToDBCConverter:
             default_value="Cyclic",
             kind="SG_",
             type_name="ENUM",
-            choices=["Cyclic","OnChange","OnWrite","IfActive","OnChangeWithRepetition","OnWriteWithRepetition","IfActiveWithRepetition","NoSigSendType","NotUsed","NotUsed","NotUsed","NotUsed","NotUsed"]
+            choices=["Cyclic","OnChange","OnWrite","IfActive","OnChangeWithRepetition",\
+                    "OnWriteWithRepetition","IfActiveWithRepetition","NoSigSendType",\
+                    "NotUsed","NotUsed","NotUsed","NotUsed","NotUsed"]
         )
         self.attr_def_nm_msg_cnt = AttributeDefinition(
             name="NmMessageCount",
@@ -297,7 +299,6 @@ class ExcelToDBCConverter:
                     else (float(row["Max"]) if pd.notna(row["Max"]) else None)
                 ),
                 unit=unit,
-                # dbc_specifics=DbcSpecifics(attribute_definitions=self.attr_def_sig_send.choices(row["Signal Send Type"])),
                 comment=comment,
                 receivers=receivers,
                 is_multiplexer=False,
