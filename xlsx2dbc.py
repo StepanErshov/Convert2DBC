@@ -94,64 +94,251 @@ class ExcelToDBCConverter:
         self.db.nodes.extend([Node(name=bus_name) for bus_name in self.bus_users])
     
     def _initialize_attr(self):
-        self.attr_def_msg_send = AttributeDefinition(
-                name="GenMsgSendType",
-                default_value="Cyclic",
-                kind="BO_",
-                type_name="ENUM",
-                choices=["Cyclic","Event","IfActive","CE","CA","NoMsgSendType"]
-            )
-        
-        self.attr_def_sig_send = AttributeDefinition(
-            name="GenSigSendType",
-            default_value="Cyclic",
-            kind="SG_",
-            type_name="ENUM",
-            choices=["Cyclic","OnChange","OnWrite","IfActive","OnChangeWithRepetition",\
-                    "OnWriteWithRepetition","IfActiveWithRepetition","NoSigSendType",\
-                    "NotUsed","NotUsed","NotUsed","NotUsed","NotUsed"]
-        )
-        self.attr_def_nm_msg_cnt = AttributeDefinition(
-            name="NmMessageCount",
-            minimum=0,
-            maximum=255,
-            type_name="INT"
+        self.attr_def_dbname = AttributeDefinition(
+            name="DBName",
+            default_value="",
+            type_name="STRING"
         )
         self.attr_def_bus_type = AttributeDefinition(
             name="BusType",
+            default_value="CAN",
+            type_name="STRING"
+        )
+        self.attr_def_manufacturer = AttributeDefinition(
+            name="Manufacturer",
+            default_value="",
+            type_name="STRING"
+        )
+        self.attr_def_nm_type = AttributeDefinition(
+            name="NmType",
+            default_value="",
             type_name="STRING"
         )
         self.attr_def_nm_base_addr = AttributeDefinition(
             name="NmBaseAddress",
+            default_value=1280,
             type_name="HEX",
             minimum=1280,
             maximum=1407
         )
-        self.attr_def_DBname = AttributeDefinition(
-            name="DBname",
-            type_name="STRING"
+        self.attr_def_nm_msg_cnt = AttributeDefinition(
+            name="NmMessageCount",
+            default_value=128,
+            type_name="INT",
+            minimum=0,
+            maximum=255
         )
+        
         self.attr_def_node_layer_modules = AttributeDefinition(
             name="NodeLayerModules",
             kind="BU_",
+            default_value="CANoeILNLVector.dll",
             type_name="STRING"
         )
-        self.attr_def_nm_mode = AttributeDefinition(
-            name="NmMode",
+        self.attr_def_il_used = AttributeDefinition(
+            name="ILUsed",
             kind="BU_",
+            default_value="No",
             type_name="ENUM",
-            choices=["no","yes"]
+            choices=["No", "Yes"]
         )
-
+        self.attr_def_diag_station_addr = AttributeDefinition(
+            name="DiagStationAddress",
+            kind="BU_",
+            default_value=0,
+            type_name="HEX",
+            minimum=0,
+            maximum=255
+        )
+        self.attr_def_nm_node = AttributeDefinition(
+            name="NmNode",
+            kind="BU_",
+            default_value="Not",
+            type_name="ENUM",
+            choices=["Not", "Yes"]
+        )
+        self.attr_def_nm_station_addr = AttributeDefinition(
+            name="NmStationAddress",
+            kind="BU_",
+            default_value=0,
+            type_name="HEX",
+            minimum=0,
+            maximum=65535
+        )
+        self.attr_def_nm_can = AttributeDefinition(
+            name="NmCAN",
+            kind="BU_",
+            default_value=0,
+            type_name="INT",
+            minimum=0,
+            maximum=2
+        )
         
-        self.db.dbc.attribute_definitions["DBname"] = self.attr_def_DBname
+        self.attr_def_msg_send_type = AttributeDefinition(
+            name="GenMsgSendType",
+            kind="BO_",
+            default_value="Cyclic",
+            type_name="ENUM",
+            choices=["Cyclic", "Event", "IfActive", "CE", "CA", "NoMsgSendType"]
+        )
+        self.attr_def_msg_cycle_time = AttributeDefinition(
+            name="GenMsgCycleTime",
+            kind="BO_",
+            default_value=0,
+            type_name="INT",
+            minimum=0,
+            maximum=0
+        )
+        self.attr_def_msg_cycle_time_fast = AttributeDefinition(
+            name="GenMsgCycleTimeFast",
+            kind="BO_",
+            default_value=0,
+            type_name="INT",
+            minimum=0,
+            maximum=0
+        )
+        self.attr_def_msg_nr_repetition = AttributeDefinition(
+            name="GenMsgNrOfRepetition",
+            kind="BO_",
+            default_value=0,
+            type_name="INT",
+            minimum=0,
+            maximum=0
+        )
+        self.attr_def_msg_delay_time = AttributeDefinition(
+            name="GenMsgDelayTime",
+            kind="BO_",
+            default_value=0,
+            type_name="INT",
+            minimum=0,
+            maximum=0
+        )
+        self.attr_def_msg_cycle_time_active = AttributeDefinition(
+            name="GenMsgCycleTimeActive",
+            kind="BO_",
+            default_value=0,
+            type_name="INT",
+            minimum=0,
+            maximum=0
+        )
+        self.attr_def_msg_il_support = AttributeDefinition(
+            name="GenMsgILSupport",
+            kind="BO_",
+            default_value="No",
+            type_name="ENUM",
+            choices=["No", "Yes"]
+        )
+        self.attr_def_msg_start_delay = AttributeDefinition(
+            name="GenMsgStartDelayTime",
+            kind="BO_",
+            default_value=0,
+            type_name="INT",
+            minimum=0,
+            maximum=65535
+        )
+        self.attr_def_nm_message = AttributeDefinition(
+            name="NmMessage",
+            kind="BO_",
+            default_value="No",
+            type_name="ENUM",
+            choices=["No", "Yes"]
+        )
+        self.attr_def_diag_state = AttributeDefinition(
+            name="DiagState",
+            kind="BO_",
+            default_value="No",
+            type_name="ENUM",
+            choices=["No", "Yes"]
+        )
+        self.attr_def_diag_request = AttributeDefinition(
+            name="DiagRequest",
+            kind="BO_",
+            default_value="No",
+            type_name="ENUM",
+            choices=["No", "Yes"]
+        )
+        self.attr_def_diag_response = AttributeDefinition(
+            name="DiagResponse",
+            kind="BO_",
+            default_value="No",
+            type_name="ENUM",
+            choices=["No", "Yes"]
+        )
+        
+        self.attr_def_sig_send_type = AttributeDefinition(
+            name="GenSigSendType",
+            kind="SG_",
+            default_value="Cyclic",
+            type_name="ENUM",
+            choices=["Cyclic", "OnChange", "OnWrite", "IfActive", "OnChangeWithRepetition",
+                    "OnWriteWithRepetition", "IfActiveWithRepetition", "NoSigSendType",
+                    "OnChangeAndIfActive", "OnChangeAndIfActiveWithRepetition", "CA", "CE", "Event"]
+        )
+        self.attr_def_sig_start_value = AttributeDefinition(
+            name="GenSigStartValue",
+            kind="SG_",
+            default_value=0,
+            type_name="INT",
+            minimum=0,
+            maximum=0
+        )
+        self.attr_def_sig_inactive_value = AttributeDefinition(
+            name="GenSigInactiveValue",
+            kind="SG_",
+            default_value=0,
+            type_name="INT",
+            minimum=0,
+            maximum=0
+        )
+        self.attr_def_sig_invalid_value = AttributeDefinition(
+            name="GenSigInvalidValue",
+            kind="SG_",
+            default_value=0,
+            type_name="INT",
+            minimum=0,
+            maximum=0
+        )
+        self.attr_def_sig_timeout_value = AttributeDefinition(
+            name="GenSigTimeoutValue",
+            kind="SG_",
+            default_value=0,
+            type_name="INT",
+            minimum=0,
+            maximum=1000000000
+        )
+        
+        self.db.dbc.attribute_definitions["DBName"] = self.attr_def_dbname
         self.db.dbc.attribute_definitions["BusType"] = self.attr_def_bus_type
-        self.db.dbc.attribute_definitions["NmMessageCount"] = self.attr_def_nm_msg_cnt
+        self.db.dbc.attribute_definitions["Manufacturer"] = self.attr_def_manufacturer
+        self.db.dbc.attribute_definitions["NmType"] = self.attr_def_nm_type
         self.db.dbc.attribute_definitions["NmBaseAddress"] = self.attr_def_nm_base_addr
+        self.db.dbc.attribute_definitions["NmMessageCount"] = self.attr_def_nm_msg_cnt
+        
         self.db.dbc.attribute_definitions["NodeLayerModules"] = self.attr_def_node_layer_modules
-        self.db.dbc.attribute_definitions["NmMode"] = self.attr_def_nm_mode
-        self.db.dbc.attribute_definitions["GenMsgSendType"] = self.attr_def_msg_send
-        self.db.dbc.attribute_definitions["GenSigSendType"] = self.attr_def_sig_send
+        self.db.dbc.attribute_definitions["ILUsed"] = self.attr_def_il_used
+        self.db.dbc.attribute_definitions["DiagStationAddress"] = self.attr_def_diag_station_addr
+        self.db.dbc.attribute_definitions["NmNode"] = self.attr_def_nm_node
+        self.db.dbc.attribute_definitions["NmStationAddress"] = self.attr_def_nm_station_addr
+        self.db.dbc.attribute_definitions["NmCAN"] = self.attr_def_nm_can
+        
+        self.db.dbc.attribute_definitions["GenMsgSendType"] = self.attr_def_msg_send_type
+        self.db.dbc.attribute_definitions["GenMsgCycleTime"] = self.attr_def_msg_cycle_time
+        self.db.dbc.attribute_definitions["GenMsgCycleTimeFast"] = self.attr_def_msg_cycle_time_fast
+        self.db.dbc.attribute_definitions["GenMsgNrOfRepetition"] = self.attr_def_msg_nr_repetition
+        self.db.dbc.attribute_definitions["GenMsgDelayTime"] = self.attr_def_msg_delay_time
+        self.db.dbc.attribute_definitions["GenMsgCycleTimeActive"] = self.attr_def_msg_cycle_time_active
+        self.db.dbc.attribute_definitions["GenMsgILSupport"] = self.attr_def_msg_il_support
+        self.db.dbc.attribute_definitions["GenMsgStartDelayTime"] = self.attr_def_msg_start_delay
+        self.db.dbc.attribute_definitions["NmMessage"] = self.attr_def_nm_message
+        self.db.dbc.attribute_definitions["DiagState"] = self.attr_def_diag_state
+        self.db.dbc.attribute_definitions["DiagRequest"] = self.attr_def_diag_request
+        self.db.dbc.attribute_definitions["DiagResponse"] = self.attr_def_diag_response
+        
+        self.db.dbc.attribute_definitions["GenSigSendType"] = self.attr_def_sig_send_type
+        self.db.dbc.attribute_definitions["GenSigStartValue"] = self.attr_def_sig_start_value
+        self.db.dbc.attribute_definitions["GenSigInactiveValue"] = self.attr_def_sig_inactive_value
+        self.db.dbc.attribute_definitions["GenSigInvalidValue"] = self.attr_def_sig_invalid_value
+        self.db.dbc.attribute_definitions["GenSigTimeoutValue"] = self.attr_def_sig_timeout_value
         
 
     def _load_excel_data(self) -> pd.DataFrame:
@@ -212,6 +399,7 @@ class ExcelToDBCConverter:
                 "Receiver": receivers,
                 "Byte Order": df["Byte Order\n排列格式(Intel/Motorola)"],
                 "Data Type": df["Data Type\n数据类型"],
+                "Message Type": df["Msg Type\n报文类型"].ffill(),
                 "Cycle Type": df["Msg Cycle Time (ms)\n报文周期时间"].ffill(),
                 "Send Type": df["Msg Send Type\n报文发送类型"].ffill(),
                 "Description": df["Signal Description\n信号描述"],
@@ -315,6 +503,10 @@ class ExcelToDBCConverter:
 
     def _create_message(self, msg_id: str, msg_name: str, group: pd.DataFrame) -> bool:
         try:
+            diag = []
+            nm = []
+            normal = []
+            
             frame_id = (
                 int(msg_id, 16)
                 if isinstance(msg_id, str) and msg_id.startswith("0x")
@@ -343,7 +535,12 @@ class ExcelToDBCConverter:
                 name=str(msg_name),
                 length=int(group["Msg Length"].iloc[0]),
                 signals=signals,
-                sort_signals=None,
+                senders=senders,
+                send_type=(
+                    group["Send Type"].iloc[0]
+                    if pd.notna(group["Send Type"].iloc[0])
+                    else None
+                ),
                 cycle_time=(
                     int(group["Cycle Type"].iloc[0])
                     if pd.notna(group["Cycle Type"].iloc[0])
@@ -351,19 +548,21 @@ class ExcelToDBCConverter:
                 ),
                 dbc_specifics = DbcSpecifics(),
                 is_extended_frame=False,
-                senders=senders,
                 header_byte_order="big_endian",
                 protocol=ExcelToDBCConverter.get_file_info(self.excel_path.name)["protocol"],
                 is_fd=True if ExcelToDBCConverter.get_file_info(self.excel_path.name)["protocol"] == "CANFD" else False,
                 bus_name=ExcelToDBCConverter.get_file_info(self.excel_path.name)["domain_name"],
-                send_type=(
-                    group["Send Type"].iloc[0]
-                    if pd.notna(group["Send Type"].iloc[0])
-                    else None
-                ),
                 comment=None,
+                sort_signals=None,
             )
-
+            
+            if msg_id.startswith("0x7"):
+                diag.append(message)
+            elif msg_id.startswith("0x5"):
+                nm.append(message)
+            else:
+                normal.append(message)
+            
             self.db.messages.append(message)
             # print(message.name, message.send_type)
             return True
@@ -405,7 +604,7 @@ class ExcelToDBCConverter:
             version = ''
         file_date = parts.pop(0)
         if len(parts) > 0:
-            if parts[0] == 'internal': # skip it
+            if parts[0] == 'internal':
                 parts.pop(0)
             device_name = '_'.join(parts)
         else:
