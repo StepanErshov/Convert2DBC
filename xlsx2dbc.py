@@ -94,14 +94,63 @@ class ExcelToDBCConverter:
         self.db.nodes.extend([Node(name=bus_name) for bus_name in self.bus_users])
     
     def _initialize_attr(self):
-        self.attr_def = AttributeDefinition(
+        self.attr_def_msg_send = AttributeDefinition(
                 name="GenMsgSendType",
                 default_value="Cyclic",
                 kind="BO_",
                 type_name="ENUM",
                 choices=["Cyclic","Event","IfActive","CE","CA","NoMsgSendType"]
             )
-        self.db.dbc.attribute_definitions["GenMsgSendType"] = self.attr_def
+        
+        self.attr_def_sig_send = AttributeDefinition(
+            name="GenSigSendType",
+            default_value="Cyclic",
+            kind="SG_",
+            type_name="ENUM",
+            choices=["Cyclic","OnChange","OnWrite","IfActive","OnChangeWithRepetition","OnWriteWithRepetition","IfActiveWithRepetition","NoSigSendType","NotUsed","NotUsed","NotUsed","NotUsed","NotUsed"]
+        )
+        self.attr_def_nm_msg_cnt = AttributeDefinition(
+            name="NmMessageCount",
+            minimum=0,
+            maximum=255,
+            type_name="INT"
+        )
+        self.attr_def_bus_type = AttributeDefinition(
+            name="BusType",
+            type_name="STRING"
+        )
+        self.attr_def_nm_base_addr = AttributeDefinition(
+            name="NmBaseAddress",
+            type_name="HEX",
+            minimum=1280,
+            maximum=1407
+        )
+        self.attr_def_DBname = AttributeDefinition(
+            name="DBname",
+            type_name="STRING"
+        )
+        self.attr_def_node_layer_modules = AttributeDefinition(
+            name="NodeLayerModules",
+            kind="BU_",
+            type_name="STRING"
+        )
+        self.attr_def_nm_mode = AttributeDefinition(
+            name="NmMode",
+            kind="BU_",
+            type_name="ENUM",
+            choices=["no","yes"]
+        )
+
+        
+        self.db.dbc.attribute_definitions["DBname"] = self.attr_def_DBname
+        self.db.dbc.attribute_definitions["BusType"] = self.attr_def_bus_type
+        self.db.dbc.attribute_definitions["NmMessageCount"] = self.attr_def_nm_msg_cnt
+        self.db.dbc.attribute_definitions["NmBaseAddress"] = self.attr_def_nm_base_addr
+        self.db.dbc.attribute_definitions["NodeLayerModules"] = self.attr_def_node_layer_modules
+        self.db.dbc.attribute_definitions["NmMode"] = self.attr_def_nm_mode
+        self.db.dbc.attribute_definitions["GenMsgSendType"] = self.attr_def_msg_send
+        self.db.dbc.attribute_definitions["GenSigSendType"] = self.attr_def_sig_send
+        
 
     def _load_excel_data(self) -> pd.DataFrame:
         df = pd.read_excel(
@@ -167,9 +216,11 @@ class ExcelToDBCConverter:
                 "Msg Length": df["Msg Length (Byte)\n报文长度"].ffill(),
                 "Signal Value Description": df["Signal Value Description\n信号值描述"],
                 "Senders": senders,
+                "Signal Send Type": df["Signal Send Type\n信号发送类型"]
             }
         )
         new_df["Send Type"] = new_df["Send Type"].astype(str).str.replace("Cycle", "Cyclic")
+        new_df["Signal Send Type"] = new_df["Signal Send Type"].astype(str).str.replace("Cycle", "Cyclic")
         new_df["Unit"] = new_df["Unit"].astype(str)
         new_df["Unit"] = new_df["Unit"].str.replace("Ω", "Ohm", regex=False)
         new_df["Unit"] = new_df["Unit"].str.replace("℃", "degC", regex=False)
@@ -235,7 +286,6 @@ class ExcelToDBCConverter:
                     ),
                     is_float=is_float,
                 ),
-                comment=comment,
                 minimum=(
                     int(row["Min"])
                     if pd.notna(row["Min"]) and float(row["Min"]).is_integer()
@@ -247,6 +297,8 @@ class ExcelToDBCConverter:
                     else (float(row["Max"]) if pd.notna(row["Max"]) else None)
                 ),
                 unit=unit,
+                # dbc_specifics=DbcSpecifics(attribute_definitions=self.attr_def_sig_send.choices(row["Signal Send Type"])),
+                comment=comment,
                 receivers=receivers,
                 is_multiplexer=False,
             )
@@ -284,6 +336,7 @@ class ExcelToDBCConverter:
                     senders = group["Senders"].iloc[0].split(",")
                 else:
                     senders = [str(group["Senders"].iloc[0])]
+
             message = cantools.database.can.Message(
                 frame_id=frame_id,
                 name=str(msg_name),
@@ -295,6 +348,7 @@ class ExcelToDBCConverter:
                     if pd.notna(group["Cycle Type"].iloc[0])
                     else None
                 ),
+                dbc_specifics = DbcSpecifics(),
                 is_extended_frame=False,
                 senders=senders,
                 header_byte_order="big_endian",
@@ -308,7 +362,7 @@ class ExcelToDBCConverter:
                 ),
                 comment=None,
             )
-            
+
             self.db.messages.append(message)
             # print(message.name, message.send_type)
             return True
