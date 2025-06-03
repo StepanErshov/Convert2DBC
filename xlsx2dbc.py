@@ -386,6 +386,8 @@ class ExcelToDBCConverter:
         
         df["Msg Cycle Time (ms)\n报文周期时间"] = pd.to_numeric(df["Msg Cycle Time (ms)\n报文周期时间"], errors='coerce').fillna(0).astype(int)
         df["Msg Cycle Time Fast(ms)\n报文发送的快速周期"] = pd.to_numeric(df["Msg Cycle Time Fast(ms)\n报文发送的快速周期"], errors='coerce').fillna(0).astype(int)
+        df["Msg Nr. Of Reption\n报文快速发送的次数"] = pd.to_numeric(df["Msg Nr. Of Reption\n报文快速发送的次数"], errors='coerce').fillna(0).astype(int)
+        df["Msg Delay Time(ms)\n报文延时时间"] = pd.to_numeric(df["Msg Delay Time(ms)\n报文延时时间"], errors='coerce').fillna(0).astype(int)
         
         new_df = pd.DataFrame(
             {
@@ -393,6 +395,8 @@ class ExcelToDBCConverter:
                 "Message Name": df["Msg Name\n报文名称"].ffill(),
                 "Cycle Type": df["Msg Cycle Time (ms)\n报文周期时间"].ffill(),
                 "Msg Time Fast": df["Msg Cycle Time Fast(ms)\n报文发送的快速周期"].ffill(),
+                "Msg Reption": df["Msg Nr. Of Reption\n报文快速发送的次数"].ffill(),
+                "Msg Delay": df["Msg Delay Time(ms)\n报文延时时间"].ffill(),
                 "Signal Name": df["Signal Name\n信号名称"],
                 "Start Byte": df["Start Byte\n起始字节"],
                 "Start Bit": df["Start Bit\n起始位"],
@@ -424,7 +428,9 @@ class ExcelToDBCConverter:
             "Send Type",
             "Msg Length",
             "Message Type",
-            "Msg Time Fast"
+            "Msg Time Fast",
+            "Msg Reption",
+            "Msg Delay"
         ]
 
         for field in consistent_fields:
@@ -605,11 +611,15 @@ class ExcelToDBCConverter:
             )
 
             mtf = int(group["Msg Time Fast"].iloc[0]) if pd.notna(group["Msg Time Fast"].iloc[0]) else 0
+            mor = int(group["Msg Reption"].iloc[0]) if pd.notna(group["Msg Reption"].iloc[0]) else 0 
+            mdt = int(group["Msg Delay"].iloc[0]) if pd.notna(group["Msg Delay"].iloc[0]) else 0 
             send_type_int = send_type_map.get(send_type_str, 0)
             
             attr_msg_send_type = Attribute(value=send_type_int, definition=self.attr_def_msg_send_type)
             attr_msg_time_fast = Attribute(value=mtf, definition=self.attr_def_msg_cycle_time_fast)
-            
+            attr_msg_rep = Attribute(value=mor, definition=self.attr_def_msg_nr_repetition)
+            attr_msg_del = Attribute(value=mdt, definition=self.attr_def_msg_delay_time)
+
             message = cantools.database.can.Message(
                 frame_id=frame_id,
                 name=str(msg_name),
@@ -623,7 +633,9 @@ class ExcelToDBCConverter:
                     else None
                 ),
                 dbc_specifics = DbcSpecifics(attributes={"GenMsgSendType": attr_msg_send_type,
-                                                         "GenMsgCycleTimeFast": attr_msg_time_fast}),
+                                                         "GenMsgCycleTimeFast": attr_msg_time_fast,
+                                                         "GenMsgNrOfRepetition": attr_msg_rep,
+                                                         "GenMsgDelayTime": attr_msg_del}),
                 # autosar_specifics=AutosarMessageSpecifics(attr_msg_send_type),
                 is_extended_frame=False,
                 header_byte_order="big_endian",
