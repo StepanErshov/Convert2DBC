@@ -513,7 +513,8 @@ class ExcelToDBCConverter:
         
             attr_sig_inv_val = Attribute(value=raw_invalid, definition=self.attr_def_sig_invalid_value)
             attr_sig_send_type = Attribute(value=send_type_int, definition=self.attr_def_sig_send_type)
-            
+            attr_sig_inact_val = Attribute(value=int(row["Inactive value"]) if pd.notna(row["Inactive value"]) else 0, definition=self.attr_def_sig_inactive_value)
+
             signal = cantools.database.can.Signal(
                 name=str(row["Signal Name"]),
                 start=int(row["Start Bit"]),
@@ -527,7 +528,8 @@ class ExcelToDBCConverter:
                     int(int(row["Invalid"], 16)) if pd.notna(row["Invalid"]) else None
                 ),
                 dbc_specifics=DbcSpecifics(attributes={"GenSigInvalidValue": attr_sig_inv_val,
-                                                       "GenSigSendType": attr_sig_send_type}),
+                                                       "GenSigSendType": attr_sig_send_type,
+                                                       "GenSigInactiveValue": attr_sig_inact_val}),
                 conversion=cantools.database.conversion.LinearConversion(
                     scale=(
                         int(row["Factor"])
