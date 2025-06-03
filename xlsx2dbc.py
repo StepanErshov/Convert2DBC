@@ -1,5 +1,6 @@
 import cantools
 from cantools.database.can.formats.arxml.message_specifics import AutosarMessageSpecifics
+from cantools.database.can.formats.arxml.node_specifics import AutosarNodeSpecifics
 import cantools.database
 import cantools.database.conversion
 import pandas as pd
@@ -88,6 +89,7 @@ class ExcelToDBCConverter:
             if any(val in ["S", "R"] for val in df[col].dropna().unique())
             and col != "Unit\n单位"
         ]
+        
         self._initialize_nodes()
         self._initialize_attr()
 
@@ -381,11 +383,14 @@ class ExcelToDBCConverter:
             receivers.append(
                 ",".join(row_receivers) if row_receivers else "Vector__XXX"
             )
-
+        
+        df["Msg Cycle Time (ms)\n报文周期时间"] = pd.to_numeric(df["Msg Cycle Time (ms)\n报文周期时间"], errors='coerce').fillna(0).astype(int)
+        # print(df["Msg Name\n报文名称"], df["Msg Cycle Time (ms)\n报文周期时间"])
         new_df = pd.DataFrame(
             {
                 "Message ID": df["Msg ID\n报文标识符"].ffill(),
                 "Message Name": df["Msg Name\n报文名称"].ffill(),
+                "Cycle Type": df["Msg Cycle Time (ms)\n报文周期时间"].ffill(),
                 "Signal Name": df["Signal Name\n信号名称"],
                 "Start Byte": df["Start Byte\n起始字节"],
                 "Start Bit": df["Start Bit\n起始位"],
@@ -401,7 +406,6 @@ class ExcelToDBCConverter:
                 "Byte Order": df["Byte Order\n排列格式(Intel/Motorola)"],
                 "Data Type": df["Data Type\n数据类型"],
                 "Message Type": df["Msg Type\n报文类型"].ffill(),
-                "Cycle Type": df["Msg Cycle Time (ms)\n报文周期时间"].ffill(),
                 "Send Type": df["Msg Send Type\n报文发送类型"].ffill(),
                 "Description": df["Signal Description\n信号描述"],
                 "Msg Length": df["Msg Length (Byte)\n报文长度"].ffill(),
@@ -410,6 +414,19 @@ class ExcelToDBCConverter:
                 "Signal Send Type": df["Signal Send Type\n信号发送类型"]
             }
         )
+
+        consistent_fields = [
+            "Message ID",
+            "Message Name",
+            "Cycle Type",
+            "Send Type",
+            "Msg Length",
+            "Message Type"
+        ]
+
+        for field in consistent_fields:
+            new_df[field] = new_df.groupby("Message Name")[field].transform("first")
+
         new_df["Send Type"] = new_df["Send Type"].astype(str).str.replace("Cycle", "Cyclic")
         new_df["Signal Send Type"] = new_df["Signal Send Type"].astype(str).str.replace("Cycle", "Cyclic")
         new_df["Unit"] = new_df["Unit"].astype(str)
