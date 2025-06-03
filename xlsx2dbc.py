@@ -70,12 +70,29 @@ class ExcelToDBCConverter:
 
     def __init__(self, excel_path: str):
         self.excel_path = excel_path
+
+        self.attr_def_dbname = AttributeDefinition(
+            name="DBName",
+            default_value="",
+            type_name="STRING"
+        )
+
+        self.attr_def_bus_type = AttributeDefinition(
+            name="BusType",
+            default_value="CAN",
+            type_name="STRING"
+        )
+
         self.db = cantools.database.can.Database(
             version=ExcelToDBCConverter.get_file_info(excel_path.name)["version"], 
             sort_signals=None, 
-            strict=False
+            strict=False,
         )
-        self.db.dbc = DbcSpecifics()
+
+        self.db.dbc = DbcSpecifics(attributes={
+            "DBName": Attribute(value=str(self.excel_path.name).split(".xlsx")[0], definition=self.attr_def_dbname),
+            "BusType": Attribute(value=ExcelToDBCConverter.get_file_info(excel_path.name)["protocol"], definition=self.attr_def_bus_type)})
+        
         df = pd.read_excel(
             self.excel_path,
             sheet_name="Matrix",
@@ -97,16 +114,6 @@ class ExcelToDBCConverter:
         self.db.nodes.extend([Node(name=bus_name) for bus_name in self.bus_users])
     
     def _initialize_attr(self):
-        self.attr_def_dbname = AttributeDefinition(
-            name="DBName",
-            default_value="",
-            type_name="STRING"
-        )
-        self.attr_def_bus_type = AttributeDefinition(
-            name="BusType",
-            default_value="CAN",
-            type_name="STRING"
-        )
         self.attr_def_manufacturer = AttributeDefinition(
             name="Manufacturer",
             default_value="",
@@ -417,7 +424,8 @@ class ExcelToDBCConverter:
                 "Msg Length": df["Msg Length (Byte)\n报文长度"].ffill(),
                 "Signal Value Description": df["Signal Value Description\n信号值描述"],
                 "Senders": senders,
-                "Signal Send Type": df["Signal Send Type\n信号发送类型"]
+                "Signal Send Type": df["Signal Send Type\n信号发送类型"],
+                "Inactive value": df["Inactive Value (Hex)\n非使能值"]
             }
         )
 
