@@ -385,12 +385,14 @@ class ExcelToDBCConverter:
             )
         
         df["Msg Cycle Time (ms)\n报文周期时间"] = pd.to_numeric(df["Msg Cycle Time (ms)\n报文周期时间"], errors='coerce').fillna(0).astype(int)
-        # print(df["Msg Name\n报文名称"], df["Msg Cycle Time (ms)\n报文周期时间"])
+        df["Msg Cycle Time Fast(ms)\n报文发送的快速周期"] = pd.to_numeric(df["Msg Cycle Time Fast(ms)\n报文发送的快速周期"], errors='coerce').fillna(0).astype(int)
+        
         new_df = pd.DataFrame(
             {
                 "Message ID": df["Msg ID\n报文标识符"].ffill(),
                 "Message Name": df["Msg Name\n报文名称"].ffill(),
                 "Cycle Type": df["Msg Cycle Time (ms)\n报文周期时间"].ffill(),
+                "Msg Time Fast": df["Msg Cycle Time Fast(ms)\n报文发送的快速周期"].ffill(),
                 "Signal Name": df["Signal Name\n信号名称"],
                 "Start Byte": df["Start Byte\n起始字节"],
                 "Start Bit": df["Start Bit\n起始位"],
@@ -421,7 +423,8 @@ class ExcelToDBCConverter:
             "Cycle Type",
             "Send Type",
             "Msg Length",
-            "Message Type"
+            "Message Type",
+            "Msg Time Fast"
         ]
 
         for field in consistent_fields:
@@ -429,13 +432,14 @@ class ExcelToDBCConverter:
 
         new_df["Send Type"] = new_df["Send Type"].astype(str).str.replace("Cycle", "Cyclic")
         new_df["Signal Send Type"] = new_df["Signal Send Type"].astype(str).str.replace("Cycle", "Cyclic")
+        
         new_df["Unit"] = new_df["Unit"].astype(str)
         new_df["Unit"] = new_df["Unit"].str.replace("Ω", "Ohm", regex=False)
         new_df["Unit"] = new_df["Unit"].str.replace("℃", "degC", regex=False)
 
         new_df = new_df.dropna(subset=["Signal Name"])
         new_df["Is Signed"] = new_df["Data Type"].str.contains("Signed", na=False)
-
+        # print(new_df.head(100))
         return new_df, all_revisions
 
     def _create_signal(self, row: pd.Series) -> Optional[cantools.database.can.Signal]:
@@ -469,6 +473,33 @@ class ExcelToDBCConverter:
                 else:
                     receivers = [str(row["Receiver"])]
 
+            raw_invalid=(
+                    int(int(row["Invalid"], 16)) if pd.notna(row["Invalid"]) else 0
+                )
+            
+            send_type_map = {
+                "Cyclic": 0, 
+                "OnChange": 1, 
+                "OnWrite": 2, 
+                "IfActive": 3, 
+                "OnChangeWithRepetition": 4,
+                "OnWriteWithRepetition": 5, 
+                "IfActiveWithRepetition": 6, 
+                "NoSigSendType": 7,
+                "OnChangeAndIfActive": 8, 
+                "OnChangeAndIfActiveWithRepetition": 9, 
+                "CA": 10, 
+                "CE": 11, 
+                "Event": 12
+            }
+
+            signal_send_type = str(row["Signal Send Type"]) if str(row["Signal Send Type"]) else "Cyclic"
+            send_type_int = send_type_map.get(signal_send_type, 0)
+            
+        
+            attr_sig_inv_val = Attribute(value=raw_invalid, definition=self.attr_def_sig_invalid_value)
+            attr_sig_send_type = Attribute(value=send_type_int, definition=self.attr_def_sig_send_type)
+            
             signal = cantools.database.can.Signal(
                 name=str(row["Signal Name"]),
                 start=int(row["Start Bit"]),
@@ -481,6 +512,8 @@ class ExcelToDBCConverter:
                 raw_invalid=(
                     int(int(row["Invalid"], 16)) if pd.notna(row["Invalid"]) else None
                 ),
+                dbc_specifics=DbcSpecifics(attributes={"GenSigInvalidValue": attr_sig_inv_val,
+                                                       "GenSigSendType": attr_sig_send_type}),
                 conversion=cantools.database.conversion.LinearConversion(
                     scale=(
                         int(row["Factor"])
@@ -571,9 +604,12 @@ class ExcelToDBCConverter:
                 else "Cyclic"
             )
 
+            mtf = int(group["Msg Time Fast"].iloc[0]) if pd.notna(group["Msg Time Fast"].iloc[0]) else 0
             send_type_int = send_type_map.get(send_type_str, 0)
+            
             attr_msg_send_type = Attribute(value=send_type_int, definition=self.attr_def_msg_send_type)
-
+            attr_msg_time_fast = Attribute(value=mtf, definition=self.attr_def_msg_cycle_time_fast)
+            
             message = cantools.database.can.Message(
                 frame_id=frame_id,
                 name=str(msg_name),
@@ -586,7 +622,8 @@ class ExcelToDBCConverter:
                     if pd.notna(group["Cycle Type"].iloc[0])
                     else None
                 ),
-                dbc_specifics = DbcSpecifics(attributes={"GenMsgSendType": attr_msg_send_type}),
+                dbc_specifics = DbcSpecifics(attributes={"GenMsgSendType": attr_msg_send_type,
+                                                         "GenMsgCycleTimeFast": attr_msg_time_fast}),
                 # autosar_specifics=AutosarMessageSpecifics(attr_msg_send_type),
                 is_extended_frame=False,
                 header_byte_order="big_endian",
