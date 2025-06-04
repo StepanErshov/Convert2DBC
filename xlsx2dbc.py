@@ -1,7 +1,5 @@
 import cantools
-from cantools.database.can.formats.arxml.message_specifics import (
-    AutosarMessageSpecifics,
-)
+from cantools.database.can.formats.arxml.message_specifics import AutosarMessageSpecifics
 from cantools.database.can.formats.arxml.node_specifics import AutosarNodeSpecifics
 import cantools.database
 import cantools.database.conversion
@@ -14,7 +12,6 @@ import re
 import os
 import argparse
 from typing import Optional, Dict
-
 
 class ValueDescriptionParser:
     @staticmethod
@@ -73,36 +70,32 @@ class ExcelToDBCConverter:
 
     def __init__(self, excel_path: str):
         self.excel_path = excel_path
+        self.diag_messages = []  # For diagnostic messages (0x7...)
+        self.nm_messages = []    # For network management messages (0x5...)
+        self.normal_messages = []  # For normal messages
 
         self.attr_def_dbname = AttributeDefinition(
-            name="DBName", default_value="", type_name="STRING"
+            name="DBName",
+            default_value="",
+            type_name="STRING"
         )
 
         self.attr_def_bus_type = AttributeDefinition(
-            name="BusType", default_value="CAN", type_name="STRING"
+            name="BusType",
+            default_value="CAN",
+            type_name="STRING"
         )
 
         self.db = cantools.database.can.Database(
-            version=ExcelToDBCConverter.get_file_info(excel_path.name)["version"],
-            sort_signals=None,
+            version=ExcelToDBCConverter.get_file_info(excel_path.name)["version"], 
+            sort_signals=None, 
             strict=False,
         )
 
-        self.db.dbc = DbcSpecifics(
-            attributes={
-                "DBName": Attribute(
-                    value=str(self.excel_path.name).split(".xlsx")[0],
-                    definition=self.attr_def_dbname,
-                ),
-                "BusType": Attribute(
-                    value=ExcelToDBCConverter.get_file_info(excel_path.name)[
-                        "protocol"
-                    ],
-                    definition=self.attr_def_bus_type,
-                ),
-            }
-        )
-
+        self.db.dbc = DbcSpecifics(attributes={
+            "DBName": Attribute(value=str(self.excel_path.name).split(".xlsx")[0], definition=self.attr_def_dbname),
+            "BusType": Attribute(value=ExcelToDBCConverter.get_file_info(excel_path.name)["protocol"], definition=self.attr_def_bus_type)})
+        
         df = pd.read_excel(
             self.excel_path,
             sheet_name="Matrix",
@@ -116,47 +109,51 @@ class ExcelToDBCConverter:
             if any(val in ["S", "R"] for val in df[col].dropna().unique())
             and col != "Unit\n单位"
         ]
-
+        
         self._initialize_nodes()
         self._initialize_attr()
 
     def _initialize_nodes(self):
         self.db.nodes.extend([Node(name=bus_name) for bus_name in self.bus_users])
-
+    
     def _initialize_attr(self):
         self.attr_def_manufacturer = AttributeDefinition(
-            name="Manufacturer", default_value="", type_name="STRING"
+            name="Manufacturer",
+            default_value="",
+            type_name="STRING"
         )
         self.attr_def_nm_type = AttributeDefinition(
-            name="NmType", default_value="", type_name="STRING"
+            name="NmType",
+            default_value="",
+            type_name="STRING"
         )
         self.attr_def_nm_base_addr = AttributeDefinition(
             name="NmBaseAddress",
             default_value=1280,
             type_name="HEX",
             minimum=1280,
-            maximum=1407,
+            maximum=1407
         )
         self.attr_def_nm_msg_cnt = AttributeDefinition(
             name="NmMessageCount",
             default_value=128,
             type_name="INT",
             minimum=0,
-            maximum=255,
+            maximum=255
         )
-
+        
         self.attr_def_node_layer_modules = AttributeDefinition(
             name="NodeLayerModules",
             kind="BU_",
             default_value="CANoeILNLVector.dll",
-            type_name="STRING",
+            type_name="STRING"
         )
         self.attr_def_il_used = AttributeDefinition(
             name="ILUsed",
             kind="BU_",
             default_value="No",
             type_name="ENUM",
-            choices=["No", "Yes"],
+            choices=["No", "Yes"]
         )
         self.attr_def_diag_station_addr = AttributeDefinition(
             name="DiagStationAddress",
@@ -164,14 +161,14 @@ class ExcelToDBCConverter:
             default_value=0,
             type_name="HEX",
             minimum=0,
-            maximum=255,
+            maximum=255
         )
         self.attr_def_nm_node = AttributeDefinition(
             name="NmNode",
             kind="BU_",
             default_value="Not",
             type_name="ENUM",
-            choices=["Not", "Yes"],
+            choices=["Not", "Yes"]
         )
         self.attr_def_nm_station_addr = AttributeDefinition(
             name="NmStationAddress",
@@ -179,7 +176,7 @@ class ExcelToDBCConverter:
             default_value=0,
             type_name="HEX",
             minimum=0,
-            maximum=65535,
+            maximum=65535
         )
         self.attr_def_nm_can = AttributeDefinition(
             name="NmCAN",
@@ -187,15 +184,15 @@ class ExcelToDBCConverter:
             default_value=0,
             type_name="INT",
             minimum=0,
-            maximum=2,
+            maximum=2
         )
-
+        
         self.attr_def_msg_send_type = AttributeDefinition(
             name="GenMsgSendType",
             kind="BO_",
             default_value="Cyclic",
             type_name="ENUM",
-            choices=["Cyclic", "Event", "IfActive", "CE", "CA", "NoMsgSendType"],
+            choices=["Cyclic", "Event", "IfActive", "CE", "CA", "NoMsgSendType"]
         )
         self.attr_def_msg_cycle_time = AttributeDefinition(
             name="GenMsgCycleTime",
@@ -203,7 +200,7 @@ class ExcelToDBCConverter:
             default_value=0,
             type_name="INT",
             minimum=0,
-            maximum=0,
+            maximum=0
         )
         self.attr_def_msg_cycle_time_fast = AttributeDefinition(
             name="GenMsgCycleTimeFast",
@@ -211,7 +208,7 @@ class ExcelToDBCConverter:
             default_value=0,
             type_name="INT",
             minimum=0,
-            maximum=0,
+            maximum=0
         )
         self.attr_def_msg_nr_repetition = AttributeDefinition(
             name="GenMsgNrOfRepetition",
@@ -219,7 +216,7 @@ class ExcelToDBCConverter:
             default_value=0,
             type_name="INT",
             minimum=0,
-            maximum=0,
+            maximum=0
         )
         self.attr_def_msg_delay_time = AttributeDefinition(
             name="GenMsgDelayTime",
@@ -227,7 +224,7 @@ class ExcelToDBCConverter:
             default_value=0,
             type_name="INT",
             minimum=0,
-            maximum=0,
+            maximum=0
         )
         self.attr_def_msg_cycle_time_active = AttributeDefinition(
             name="GenMsgCycleTimeActive",
@@ -235,14 +232,14 @@ class ExcelToDBCConverter:
             default_value=0,
             type_name="INT",
             minimum=0,
-            maximum=0,
+            maximum=0
         )
         self.attr_def_msg_il_support = AttributeDefinition(
             name="GenMsgILSupport",
             kind="BO_",
             default_value="No",
             type_name="ENUM",
-            choices=["No", "Yes"],
+            choices=["No", "Yes"]
         )
         self.attr_def_msg_start_delay = AttributeDefinition(
             name="GenMsgStartDelayTime",
@@ -250,57 +247,45 @@ class ExcelToDBCConverter:
             default_value=0,
             type_name="INT",
             minimum=0,
-            maximum=65535,
+            maximum=65535
         )
         self.attr_def_nm_message = AttributeDefinition(
             name="NmMessage",
             kind="BO_",
             default_value="No",
             type_name="ENUM",
-            choices=["No", "Yes"],
+            choices=["No", "Yes"]
         )
         self.attr_def_diag_state = AttributeDefinition(
             name="DiagState",
             kind="BO_",
             default_value="No",
             type_name="ENUM",
-            choices=["No", "Yes"],
+            choices=["No", "Yes"]
         )
         self.attr_def_diag_request = AttributeDefinition(
             name="DiagRequest",
             kind="BO_",
             default_value="No",
             type_name="ENUM",
-            choices=["No", "Yes"],
+            choices=["No", "Yes"]
         )
         self.attr_def_diag_response = AttributeDefinition(
             name="DiagResponse",
             kind="BO_",
             default_value="No",
             type_name="ENUM",
-            choices=["No", "Yes"],
+            choices=["No", "Yes"]
         )
-
+        
         self.attr_def_sig_send_type = AttributeDefinition(
             name="GenSigSendType",
             kind="SG_",
             default_value="Cyclic",
             type_name="ENUM",
-            choices=[
-                "Cyclic",
-                "OnChange",
-                "OnWrite",
-                "IfActive",
-                "OnChangeWithRepetition",
-                "OnWriteWithRepetition",
-                "IfActiveWithRepetition",
-                "NoSigSendType",
-                "OnChangeAndIfActive",
-                "OnChangeAndIfActiveWithRepetition",
-                "CA",
-                "CE",
-                "Event",
-            ],
+            choices=["Cyclic", "OnChange", "OnWrite", "IfActive", "OnChangeWithRepetition",
+                    "OnWriteWithRepetition", "IfActiveWithRepetition", "NoSigSendType",
+                    "OnChangeAndIfActive", "OnChangeAndIfActiveWithRepetition", "CA", "CE", "Event"]
         )
         self.attr_def_sig_start_value = AttributeDefinition(
             name="GenSigStartValue",
@@ -308,7 +293,7 @@ class ExcelToDBCConverter:
             default_value=0,
             type_name="INT",
             minimum=0,
-            maximum=0,
+            maximum=0
         )
         self.attr_def_sig_inactive_value = AttributeDefinition(
             name="GenSigInactiveValue",
@@ -316,7 +301,7 @@ class ExcelToDBCConverter:
             default_value=0,
             type_name="INT",
             minimum=0,
-            maximum=0,
+            maximum=0
         )
         self.attr_def_sig_invalid_value = AttributeDefinition(
             name="GenSigInvalidValue",
@@ -324,7 +309,7 @@ class ExcelToDBCConverter:
             default_value=0,
             type_name="INT",
             minimum=0,
-            maximum=0,
+            maximum=0
         )
         self.attr_def_sig_timeout_value = AttributeDefinition(
             name="GenSigTimeoutValue",
@@ -332,73 +317,42 @@ class ExcelToDBCConverter:
             default_value=0,
             type_name="INT",
             minimum=0,
-            maximum=1000000000,
+            maximum=1000000000
         )
-
+        
         self.db.dbc.attribute_definitions["DBName"] = self.attr_def_dbname
         self.db.dbc.attribute_definitions["BusType"] = self.attr_def_bus_type
         self.db.dbc.attribute_definitions["Manufacturer"] = self.attr_def_manufacturer
         self.db.dbc.attribute_definitions["NmType"] = self.attr_def_nm_type
         self.db.dbc.attribute_definitions["NmBaseAddress"] = self.attr_def_nm_base_addr
         self.db.dbc.attribute_definitions["NmMessageCount"] = self.attr_def_nm_msg_cnt
-
-        self.db.dbc.attribute_definitions["NodeLayerModules"] = (
-            self.attr_def_node_layer_modules
-        )
+        
+        self.db.dbc.attribute_definitions["NodeLayerModules"] = self.attr_def_node_layer_modules
         self.db.dbc.attribute_definitions["ILUsed"] = self.attr_def_il_used
-        self.db.dbc.attribute_definitions["DiagStationAddress"] = (
-            self.attr_def_diag_station_addr
-        )
+        self.db.dbc.attribute_definitions["DiagStationAddress"] = self.attr_def_diag_station_addr
         self.db.dbc.attribute_definitions["NmNode"] = self.attr_def_nm_node
-        self.db.dbc.attribute_definitions["NmStationAddress"] = (
-            self.attr_def_nm_station_addr
-        )
+        self.db.dbc.attribute_definitions["NmStationAddress"] = self.attr_def_nm_station_addr
         self.db.dbc.attribute_definitions["NmCAN"] = self.attr_def_nm_can
-
-        self.db.dbc.attribute_definitions["GenMsgSendType"] = (
-            self.attr_def_msg_send_type
-        )
-        self.db.dbc.attribute_definitions["GenMsgCycleTime"] = (
-            self.attr_def_msg_cycle_time
-        )
-        self.db.dbc.attribute_definitions["GenMsgCycleTimeFast"] = (
-            self.attr_def_msg_cycle_time_fast
-        )
-        self.db.dbc.attribute_definitions["GenMsgNrOfRepetition"] = (
-            self.attr_def_msg_nr_repetition
-        )
-        self.db.dbc.attribute_definitions["GenMsgDelayTime"] = (
-            self.attr_def_msg_delay_time
-        )
-        self.db.dbc.attribute_definitions["GenMsgCycleTimeActive"] = (
-            self.attr_def_msg_cycle_time_active
-        )
-        self.db.dbc.attribute_definitions["GenMsgILSupport"] = (
-            self.attr_def_msg_il_support
-        )
-        self.db.dbc.attribute_definitions["GenMsgStartDelayTime"] = (
-            self.attr_def_msg_start_delay
-        )
+        
+        self.db.dbc.attribute_definitions["GenMsgSendType"] = self.attr_def_msg_send_type
+        self.db.dbc.attribute_definitions["GenMsgCycleTime"] = self.attr_def_msg_cycle_time
+        self.db.dbc.attribute_definitions["GenMsgCycleTimeFast"] = self.attr_def_msg_cycle_time_fast
+        self.db.dbc.attribute_definitions["GenMsgNrOfRepetition"] = self.attr_def_msg_nr_repetition
+        self.db.dbc.attribute_definitions["GenMsgDelayTime"] = self.attr_def_msg_delay_time
+        self.db.dbc.attribute_definitions["GenMsgCycleTimeActive"] = self.attr_def_msg_cycle_time_active
+        self.db.dbc.attribute_definitions["GenMsgILSupport"] = self.attr_def_msg_il_support
+        self.db.dbc.attribute_definitions["GenMsgStartDelayTime"] = self.attr_def_msg_start_delay
         self.db.dbc.attribute_definitions["NmMessage"] = self.attr_def_nm_message
         self.db.dbc.attribute_definitions["DiagState"] = self.attr_def_diag_state
         self.db.dbc.attribute_definitions["DiagRequest"] = self.attr_def_diag_request
         self.db.dbc.attribute_definitions["DiagResponse"] = self.attr_def_diag_response
-
-        self.db.dbc.attribute_definitions["GenSigSendType"] = (
-            self.attr_def_sig_send_type
-        )
-        self.db.dbc.attribute_definitions["GenSigStartValue"] = (
-            self.attr_def_sig_start_value
-        )
-        self.db.dbc.attribute_definitions["GenSigInactiveValue"] = (
-            self.attr_def_sig_inactive_value
-        )
-        self.db.dbc.attribute_definitions["GenSigInvalidValue"] = (
-            self.attr_def_sig_invalid_value
-        )
-        self.db.dbc.attribute_definitions["GenSigTimeoutValue"] = (
-            self.attr_def_sig_timeout_value
-        )
+        
+        self.db.dbc.attribute_definitions["GenSigSendType"] = self.attr_def_sig_send_type
+        self.db.dbc.attribute_definitions["GenSigStartValue"] = self.attr_def_sig_start_value
+        self.db.dbc.attribute_definitions["GenSigInactiveValue"] = self.attr_def_sig_inactive_value
+        self.db.dbc.attribute_definitions["GenSigInvalidValue"] = self.attr_def_sig_invalid_value
+        self.db.dbc.attribute_definitions["GenSigTimeoutValue"] = self.attr_def_sig_timeout_value
+        
 
     def _load_excel_data(self) -> pd.DataFrame:
         df = pd.read_excel(
@@ -439,38 +393,18 @@ class ExcelToDBCConverter:
             receivers.append(
                 ",".join(row_receivers) if row_receivers else "Vector__XXX"
             )
-
-        df["Msg Cycle Time (ms)\n报文周期时间"] = (
-            pd.to_numeric(df["Msg Cycle Time (ms)\n报文周期时间"], errors="coerce")
-            .fillna(0)
-            .astype(int)
-        )
-        df["Msg Cycle Time Fast(ms)\n报文发送的快速周期"] = (
-            pd.to_numeric(
-                df["Msg Cycle Time Fast(ms)\n报文发送的快速周期"], errors="coerce"
-            )
-            .fillna(0)
-            .astype(int)
-        )
-        df["Msg Nr. Of Reption\n报文快速发送的次数"] = (
-            pd.to_numeric(df["Msg Nr. Of Reption\n报文快速发送的次数"], errors="coerce")
-            .fillna(0)
-            .astype(int)
-        )
-        df["Msg Delay Time(ms)\n报文延时时间"] = (
-            pd.to_numeric(df["Msg Delay Time(ms)\n报文延时时间"], errors="coerce")
-            .fillna(0)
-            .astype(int)
-        )
-
+        
+        df["Msg Cycle Time (ms)\n报文周期时间"] = pd.to_numeric(df["Msg Cycle Time (ms)\n报文周期时间"], errors='coerce').fillna(0).astype(int)
+        df["Msg Cycle Time Fast(ms)\n报文发送的快速周期"] = pd.to_numeric(df["Msg Cycle Time Fast(ms)\n报文发送的快速周期"], errors='coerce').fillna(0).astype(int)
+        df["Msg Nr. Of Reption\n报文快速发送的次数"] = pd.to_numeric(df["Msg Nr. Of Reption\n报文快速发送的次数"], errors='coerce').fillna(0).astype(int)
+        df["Msg Delay Time(ms)\n报文延时时间"] = pd.to_numeric(df["Msg Delay Time(ms)\n报文延时时间"], errors='coerce').fillna(0).astype(int)
+        
         new_df = pd.DataFrame(
             {
                 "Message ID": df["Msg ID\n报文标识符"].ffill(),
                 "Message Name": df["Msg Name\n报文名称"].ffill(),
                 "Cycle Type": df["Msg Cycle Time (ms)\n报文周期时间"].ffill(),
-                "Msg Time Fast": df[
-                    "Msg Cycle Time Fast(ms)\n报文发送的快速周期"
-                ].ffill(),
+                "Msg Time Fast": df["Msg Cycle Time Fast(ms)\n报文发送的快速周期"].ffill(),
                 "Msg Reption": df["Msg Nr. Of Reption\n报文快速发送的次数"].ffill(),
                 "Msg Delay": df["Msg Delay Time(ms)\n报文延时时间"].ffill(),
                 "Signal Name": df["Signal Name\n信号名称"],
@@ -494,7 +428,7 @@ class ExcelToDBCConverter:
                 "Signal Value Description": df["Signal Value Description\n信号值描述"],
                 "Senders": senders,
                 "Signal Send Type": df["Signal Send Type\n信号发送类型"],
-                "Inactive value": df["Inactive Value (Hex)\n非使能值"],
+                "Inactive value": df["Inactive Value (Hex)\n非使能值"]
             }
         )
 
@@ -507,19 +441,15 @@ class ExcelToDBCConverter:
             "Message Type",
             "Msg Time Fast",
             "Msg Reption",
-            "Msg Delay",
+            "Msg Delay"
         ]
 
         for field in consistent_fields:
             new_df[field] = new_df.groupby("Message Name")[field].transform("first")
 
-        new_df["Send Type"] = (
-            new_df["Send Type"].astype(str).str.replace("Cycle", "Cyclic")
-        )
-        new_df["Signal Send Type"] = (
-            new_df["Signal Send Type"].astype(str).str.replace("Cycle", "Cyclic")
-        )
-
+        new_df["Send Type"] = new_df["Send Type"].astype(str).str.replace("Cycle", "Cyclic")
+        new_df["Signal Send Type"] = new_df["Signal Send Type"].astype(str).str.replace("Cycle", "Cyclic")
+        
         new_df["Unit"] = new_df["Unit"].astype(str)
         new_df["Unit"] = new_df["Unit"].str.replace("Ω", "Ohm", regex=False)
         new_df["Unit"] = new_df["Unit"].str.replace("℃", "degC", regex=False)
@@ -535,7 +465,7 @@ class ExcelToDBCConverter:
             comment = re.sub(r"[\u4e00-\u9fff]+", "", comment)
             comment = str.replace(comment, "/", "")
             comment = str.replace(comment, "\n", "")
-            unit = str(row["Unit"]) if pd.notna(row["Unit"]) else ""
+            unit=str(row["Unit"]) if pd.notna(row["Unit"]) else ""
             unit = str.replace(unit, "nan", "")
             byte_order = (
                 "big_endian" if row["Byte Order"] == "Motorola MSB" else "little_endian"
@@ -560,45 +490,33 @@ class ExcelToDBCConverter:
                 else:
                     receivers = [str(row["Receiver"])]
 
-            raw_invalid = (
-                int(int(row["Invalid"], 16)) if pd.notna(row["Invalid"]) else 0
-            )
-
+            raw_invalid=(
+                    int(int(row["Invalid"], 16)) if pd.notna(row["Invalid"]) else 0
+                )
+            
             send_type_map = {
-                "Cyclic": 0,
-                "OnChange": 1,
-                "OnWrite": 2,
-                "IfActive": 3,
+                "Cyclic": 0, 
+                "OnChange": 1, 
+                "OnWrite": 2, 
+                "IfActive": 3, 
                 "OnChangeWithRepetition": 4,
-                "OnWriteWithRepetition": 5,
-                "IfActiveWithRepetition": 6,
+                "OnWriteWithRepetition": 5, 
+                "IfActiveWithRepetition": 6, 
                 "NoSigSendType": 7,
-                "OnChangeAndIfActive": 8,
-                "OnChangeAndIfActiveWithRepetition": 9,
-                "CA": 10,
-                "CE": 11,
-                "Event": 12,
+                "OnChangeAndIfActive": 8, 
+                "OnChangeAndIfActiveWithRepetition": 9, 
+                "CA": 10, 
+                "CE": 11, 
+                "Event": 12
             }
 
-            signal_send_type = (
-                str(row["Signal Send Type"])
-                if str(row["Signal Send Type"])
-                else "Cyclic"
-            )
+            signal_send_type = str(row["Signal Send Type"]) if str(row["Signal Send Type"]) else "Cyclic"
             send_type_int = send_type_map.get(signal_send_type, 0)
-
-            attr_sig_inv_val = Attribute(
-                value=raw_invalid, definition=self.attr_def_sig_invalid_value
-            )
-            attr_sig_send_type = Attribute(
-                value=send_type_int, definition=self.attr_def_sig_send_type
-            )
-            attr_sig_inact_val = Attribute(
-                value=(
-                    int(row["Inactive value"]) if pd.notna(row["Inactive value"]) else 0
-                ),
-                definition=self.attr_def_sig_inactive_value,
-            )
+            
+        
+            attr_sig_inv_val = Attribute(value=raw_invalid, definition=self.attr_def_sig_invalid_value)
+            attr_sig_send_type = Attribute(value=send_type_int, definition=self.attr_def_sig_send_type)
+            attr_sig_inact_val = Attribute(value=int(row["Inactive value"]) if pd.notna(row["Inactive value"]) else 0, definition=self.attr_def_sig_inactive_value)
 
             signal = cantools.database.can.Signal(
                 name=str(row["Signal Name"]),
@@ -612,13 +530,9 @@ class ExcelToDBCConverter:
                 raw_invalid=(
                     int(int(row["Invalid"], 16)) if pd.notna(row["Invalid"]) else None
                 ),
-                dbc_specifics=DbcSpecifics(
-                    attributes={
-                        "GenSigInvalidValue": attr_sig_inv_val,
-                        "GenSigSendType": attr_sig_send_type,
-                        "GenSigInactiveValue": attr_sig_inact_val,
-                    }
-                ),
+                dbc_specifics=DbcSpecifics(attributes={"GenSigInvalidValue": attr_sig_inv_val,
+                                                       "GenSigSendType": attr_sig_send_type,
+                                                       "GenSigInactiveValue": attr_sig_inact_val}),
                 conversion=cantools.database.conversion.LinearConversion(
                     scale=(
                         int(row["Factor"])
@@ -658,11 +572,7 @@ class ExcelToDBCConverter:
             return None
 
     def _create_message(self, msg_id: str, msg_name: str, group: pd.DataFrame) -> bool:
-        try:
-            diag = []
-            nm = []
-            normal = []
-
+        try:     
             frame_id = (
                 int(msg_id, 16)
                 if isinstance(msg_id, str) and msg_id.startswith("0x")
@@ -684,23 +594,23 @@ class ExcelToDBCConverter:
                     senders = group["Senders"].iloc[0].split(",")
                 else:
                     senders = [str(group["Senders"].iloc[0])]
-
+            
             # autosar_specifics = AutosarMessageSpecifics()
             # autosar_specifics=autosar_specifics,
-
+            
             send_type = (
-                group["Send Type"].iloc[0]
-                if pd.notna(group["Send Type"].iloc[0])
-                else None
-            )
-
+                    group["Send Type"].iloc[0]
+                    if pd.notna(group["Send Type"].iloc[0])
+                    else None
+                )
+            
             send_type_map = {
                 "Cyclic": 0,
                 "Event": 1,
                 "IfActive": 2,
                 "CE": 3,
                 "CA": 4,
-                "NoMsgSendType": 5,
+                "NoMsgSendType": 5
             }
 
             send_type_str = (
@@ -709,32 +619,14 @@ class ExcelToDBCConverter:
                 else "Cyclic"
             )
 
-            mtf = (
-                int(group["Msg Time Fast"].iloc[0])
-                if pd.notna(group["Msg Time Fast"].iloc[0])
-                else 0
-            )
-            mor = (
-                int(group["Msg Reption"].iloc[0])
-                if pd.notna(group["Msg Reption"].iloc[0])
-                else 0
-            )
-            mdt = (
-                int(group["Msg Delay"].iloc[0])
-                if pd.notna(group["Msg Delay"].iloc[0])
-                else 0
-            )
+            mtf = int(group["Msg Time Fast"].iloc[0]) if pd.notna(group["Msg Time Fast"].iloc[0]) else 0
+            mor = int(group["Msg Reption"].iloc[0]) if pd.notna(group["Msg Reption"].iloc[0]) else 0 
+            mdt = int(group["Msg Delay"].iloc[0]) if pd.notna(group["Msg Delay"].iloc[0]) else 0 
             send_type_int = send_type_map.get(send_type_str, 0)
-
-            attr_msg_send_type = Attribute(
-                value=send_type_int, definition=self.attr_def_msg_send_type
-            )
-            attr_msg_time_fast = Attribute(
-                value=mtf, definition=self.attr_def_msg_cycle_time_fast
-            )
-            attr_msg_rep = Attribute(
-                value=mor, definition=self.attr_def_msg_nr_repetition
-            )
+            
+            attr_msg_send_type = Attribute(value=send_type_int, definition=self.attr_def_msg_send_type)
+            attr_msg_time_fast = Attribute(value=mtf, definition=self.attr_def_msg_cycle_time_fast)
+            attr_msg_rep = Attribute(value=mor, definition=self.attr_def_msg_nr_repetition)
             attr_msg_del = Attribute(value=mdt, definition=self.attr_def_msg_delay_time)
 
             message = cantools.database.can.Message(
@@ -749,105 +641,88 @@ class ExcelToDBCConverter:
                     if pd.notna(group["Cycle Type"].iloc[0])
                     else None
                 ),
-                dbc_specifics=DbcSpecifics(
-                    attributes={
-                        "GenMsgSendType": attr_msg_send_type,
-                        "GenMsgCycleTimeFast": attr_msg_time_fast,
-                        "GenMsgNrOfRepetition": attr_msg_rep,
-                        "GenMsgDelayTime": attr_msg_del,
-                    }
-                ),
+                dbc_specifics = DbcSpecifics(attributes={"GenMsgSendType": attr_msg_send_type,
+                                                         "GenMsgCycleTimeFast": attr_msg_time_fast,
+                                                         "GenMsgNrOfRepetition": attr_msg_rep,
+                                                         "GenMsgDelayTime": attr_msg_del}),
                 # autosar_specifics=AutosarMessageSpecifics(attr_msg_send_type),
                 is_extended_frame=False,
                 header_byte_order="big_endian",
-                protocol=ExcelToDBCConverter.get_file_info(self.excel_path.name)[
-                    "protocol"
-                ],
-                is_fd=(
-                    True
-                    if ExcelToDBCConverter.get_file_info(self.excel_path.name)[
-                        "protocol"
-                    ]
-                    == "CANFD"
-                    else False
-                ),
-                bus_name=ExcelToDBCConverter.get_file_info(self.excel_path.name)[
-                    "domain_name"
-                ],
+                protocol=ExcelToDBCConverter.get_file_info(self.excel_path.name)["protocol"],
+                is_fd=True if ExcelToDBCConverter.get_file_info(self.excel_path.name)["protocol"] == "CANFD" else False,
+                bus_name=ExcelToDBCConverter.get_file_info(self.excel_path.name)["domain_name"],
                 comment=None,
                 sort_signals=None,
             )
-
-            if msg_id.startswith("0x7"):
-                diag.append(message)
-            elif msg_id.startswith("0x5"):
-                nm.append(message)
+            
+            if msg_id.startswith("0x7") and "DiagReq_" in message.name:
+                message.dbc.attributes = {"DiagRequest": Attribute(value=1, definition=self.attr_def_diag_request)}
+            elif msg_id.startswith("0x7") and "DiagResp_" in message.name:
+                message.dbc.attributes = {"DiagResponse": Attribute(value=1, definition=self.attr_def_diag_response)}
+            elif msg_id.startswith("0x7") and "DiagState_" in message.name:
+                message.dbc.attributes = {"DiagState": Attribute(value=1, definition=self.attr_def_diag_state)}
+            elif msg_id.startswith("0x5") and "NM_" in message.name:
+                message.dbc.attributes = {"NmMessage": Attribute(value=1, definition=self.attr_def_nm_message)}
+                self.nm_messages.append(message)
             else:
-                normal.append(message)
+                self.normal_messages.append(message)
 
             self.db.messages.append(message)
 
             return True
-
+            
         except Exception as e:
             print(f"Error creating message {msg_name}: {str(e)}")
             return False
-
+        
+    
     def get_file_info(file_name: str):
-        file_start = "ATOM_CAN_Matrix_"
-        file_start1 = "ATOM_CANFD_Matrix_"
+        file_start = 'ATOM_CAN_Matrix_'
+        file_start1 = 'ATOM_CANFD_Matrix_' 
         file_name_only = os.path.splitext(os.path.basename(file_name))[0]
         if file_name_only.startswith(file_start1):
-            protocol = "CANFD"
+            protocol = 'CANFD'
             start_index = 0
-            parts = file_name_only[len(file_start1) :].split("_")
+            parts = file_name_only[len(file_start1):].split('_')
         elif file_name_only.startswith(file_start):
-            protocol = "CAN"
+            protocol = 'CAN'
             start_index = 0
-            parts = file_name_only[len(file_start) :].split("_")
+            parts = file_name_only[len(file_start):].split('_')
         else:
-            protocol = ""
-        if not (
-            file_name_only.startswith(file_start)
-            or file_name_only.startswith(file_start1)
-        ):
+            protocol = ''
+        if not (file_name_only.startswith(file_start) or file_name_only.startswith(file_start1)):
             return None
         start_index = file_name_only.find(file_start1)
         if start_index != -1:
-            parts = file_name_only[start_index + len(file_start1) :].split("_")
+            parts = file_name_only[start_index + len(file_start1):].split('_')
         else:
-            parts = file_name_only[len(file_start) :].split("_")
+            parts = file_name_only[len(file_start):].split('_')
         domain_name = parts.pop(0)
         version_string = parts.pop(0)
-        if version_string.startswith("V"):
+        if version_string.startswith('V'):
             version = version_string[1:]
-            versions = version.split(".")
+            versions = version.split('.')
             if len(versions) != 3:
                 return None
         else:
-            version = ""
+            version = ''
         file_date = parts.pop(0)
         if len(parts) > 0:
-            if parts[0] == "internal":
+            if parts[0] == 'internal':
                 parts.pop(0)
-            device_name = "_".join(parts)
+            device_name = '_'.join(parts)
         else:
-            device_name = ""
+            device_name = ''
 
-        return {
-            "version": version,
-            "date": file_date,
-            "device_name": device_name,
-            "domain_name": domain_name,
-            "protocol": protocol,
-        }
+        return {'version': version, 'date': file_date, 'device_name': device_name, 'domain_name': domain_name, "protocol": protocol}
+
 
     def convert(self, output_path: str = "output.dbc") -> bool:
         """Main method convert"""
         try:
             df, _ = self._load_excel_data()
             grouped = df.groupby(["Message ID", "Message Name"])
-
+            
             for (msg_id, msg_name), group in grouped:
                 self._create_message(msg_id, msg_name, group)
 
