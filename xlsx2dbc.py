@@ -470,13 +470,13 @@ class ExcelToDBCConverter:
             {
                 "Message ID": df["Msg ID\n报文标识符"].ffill(),
                 "Message Name": df["Msg Name\n报文名称"].ffill(),
+                "Signal Name": df["Signal Name\n信号名称"],
                 "Cycle Type": df["Msg Cycle Time (ms)\n报文周期时间"].ffill(),
                 "Msg Time Fast": df[
                     "Msg Cycle Time Fast(ms)\n报文发送的快速周期"
                 ].ffill(),
                 "Msg Reption": df["Msg Nr. Of Reption\n报文快速发送的次数"].ffill(),
                 "Msg Delay": df["Msg Delay Time(ms)\n报文延时时间"].ffill(),
-                "Signal Name": df["Signal Name\n信号名称"],
                 "Start Byte": df["Start Byte\n起始字节"],
                 "Start Bit": df["Start Bit\n起始位"],
                 "Length": df["Bit Length (Bit)\n信号长度"],
@@ -529,7 +529,7 @@ class ExcelToDBCConverter:
 
         new_df = new_df.dropna(subset=["Signal Name"])
         new_df["Is Signed"] = new_df["Data Type"].str.contains("Signed", na=False)
-        # print(new_df.head(100))
+
         return new_df, all_revisions
 
     def _create_signal(self, row: pd.Series) -> Optional[cantools.database.can.Signal]:

@@ -1,7 +1,9 @@
-import ldfparser as ldf
+import ldfparser
+from ldfparser.lin import LinVersion
 import pandas as pd
 from typing import Optional, Dict
 import re
+
 
 class ValueDescriptionParser:
     
@@ -60,5 +62,83 @@ class ValueDescriptionParser:
 class ExcelToLDFConverter:
     def __init__(self, excel_path: str):
         self.excel_path = excel_path
-        self.ldf = ldf.parse_ldf("example.ldf")
+        self.ldf_version = LinVersion(2.1, 2.1)
+
+        df = pd.read_excel(
+            self.excel_path,
+            sheet_name="Matrix",
+            keep_default_na=True,
+            engine="openpyxl"
+        )
+
+        self.bus_users = [
+            col 
+            for col in df.columns
+            if any(val in ["S", "R"] for val in df[col].dropna().unique())
+            and col != "Unit\n单位"
+        ]
         
+
+    def _load_excel_data(self) -> pd.DataFrame:
+        df = pd.read_excel(
+            self.excel_path,
+            sheet_name="Matrix",
+            keep_default_na=True,
+            engine="openpyxl"
+        )
+
+        senders = []
+        receivers = []
+
+        for _, row in df.iterrows():
+            row_senders = []
+            row_receivers = []
+
+            for bus_users in self.bus_users:
+                if bus_users in df.columns:
+                    if pd.notna(row[bus_users]) and row[bus_users] == "S":
+                        row_senders.append(bus_users)
+                    elif pd.notna(row[bus_users]) and row[bus_users] == "R":
+                        row_receivers.append(bus_users)
+            
+            senders.append(",".join(row_senders) if row_senders else None)
+            receivers.append(
+                ",".join(row_receivers) if row_receivers else None
+            )
+
+        new_df = pd.DataFrame(
+            {
+                "Message name":df['Msg Name\n报文名称'].ffill(), 
+                "Message ID": df['Msg ID(hex)\n报文标识符'].ffill(), 
+                "Protected Id": df['Protected ID (hex)\n保护标识符'].ffill(),
+                "Msg Send Type": df['Msg Send Type\n报文发送类型'].ffill(), 
+                "Checksum mode": df['Checksum mode\n校验方式'].ffill(),
+                "Msg Length": df['Msg Length(Byte)\n报文长度'].ffill(), 
+                "Signal Name": df['Signal Name\n信号名称'],
+                "Sig Description": df['Signal Description\n信号描述'], 
+                "Response Error": df['Response Error'], 
+                "Start Byte": df['Start Byte\n起始字节'],
+                "Start Bit": df['Start Bit\n起始位'], 
+                "Bit Length": df['Bit Length(Bit)\n信号长度'], 
+                "Resolution": df['Resolution\n精度'],
+                "Offset": df['Offset\n偏移量'], 
+                "Minimum": df['Signal Min. Value(phys)\n物理最小值'],
+                "Maximum": df['Signal Max. Value(phys)\n物理最大值'], 
+                "Min Hex": df['Signal Min. Value(Hex)\n总线最小值'],
+                "Max Hex": df['Signal Max. Value(Hex)\n总线最大值'], 
+                "Unit": df['Unit\n单位'], 
+                "Init value": df['Initial Value(Hex)\n初始值'],
+                "Invalid value": df['Invalid Value(Hex)\n无效值'], 
+                "Sig Val Description": df['Signal Value Description(hex)\n信号值描述'],
+                "Remarks": df['Remark\n备注'],
+                "Senders": senders,
+                "Receivers": receivers
+            }
+        )
+        new_df = new_df.dropna(subset=["Signal Name"])
+        print(new_df.head(20))
+
+
+
+
+print(ExcelToLDFConverter("C:\\projects\\Convert2DBC\\ATOM_LIN_Matrix_DCM_FL-ALM_FL_V4.0.0-20250121.xlsx")._load_excel_data())
