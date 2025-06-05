@@ -4,6 +4,8 @@ from xlsx2dbc import ExcelToDBCConverter
 import os
 from datetime import datetime
 import re
+from PIL import Image
+import io
 
 st.set_page_config(
     page_title="Excel to DBC Converter",
@@ -45,11 +47,13 @@ def extract_version_date(filename):
         return match.group(1), match.group(2)
     return None, None
 
-def generate_output_filename(input_filename, new_version=None):
+def generate_base_name(input_filename):
     base_name = os.path.splitext(input_filename)[0]
-    
     base_name = re.sub(r'_V\d+\.\d+\.\d+_\d{8}$', '', base_name)
-    
+    return base_name
+
+def generate_default_output_filename(input_filename, new_version=None):
+    base_name = generate_base_name(input_filename)
     current_date = datetime.now().strftime("%Y%m%d")
     
     if new_version is None:
@@ -59,7 +63,12 @@ def generate_output_filename(input_filename, new_version=None):
     return f"{base_name}_V{new_version}_{current_date}.dbc"
 
 def main():
-    st.markdown('<h1 class="title">📊 Excel to DBC Converter</h1>', unsafe_allow_html=True)
+    st.markdown("""
+    <h1 class="title" style="display: flex; align-items: center; gap: 10px;">
+        <img src="Convert2DBC/EEA team.png" width="32" height="32">
+        Excel to DBC Converter
+    </h1>
+    """, unsafe_allow_html=True)
     st.markdown("Upload your Excel file containing CAN data to convert it to a DBC file.")
     
     col1, col2 = st.columns([3, 1])
@@ -93,24 +102,34 @@ def main():
                 help="Enter the version number in format X.X.X"
             )
             
-            output_filename = generate_output_filename(uploaded_file.name, new_version)
+            base_name = generate_base_name(uploaded_file.name)
             
-            st.markdown("**Output DBC file name:**")
-            st.code(output_filename)
+            default_output_name = generate_default_output_filename(uploaded_file.name, new_version)
+            custom_filename = st.text_input(
+                "Output DBC file name",
+                value=default_output_name,
+                help="You can customize the output file name"
+            )
+            
+            if not custom_filename.lower().endswith('.dbc'):
+                custom_filename += '.dbc'
+            
+            st.markdown("**Final DBC file name:**")
+            st.code(custom_filename)
             
             if st.button("Convert to DBC", key="convert_button"):
                 with st.spinner('Converting... Please wait'):
                     try:
                         converter = ExcelToDBCConverter(uploaded_file)
-                        if converter.convert(output_filename):
+                        if converter.convert(custom_filename):
                             st.success("Conversion completed successfully!")
                             
-                            with open(output_filename, "rb") as f:
+                            with open(custom_filename, "rb") as f:
                                 bytes_data = f.read()
                                 st.download_button(
                                     label="Download DBC File",
                                     data=bytes_data,
-                                    file_name=output_filename,
+                                    file_name=custom_filename,
                                     mime="application/octet-stream",
                                     key="download_button"
                                 )
