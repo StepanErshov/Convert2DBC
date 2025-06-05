@@ -1,6 +1,6 @@
 # CAN DBC Converter Tool
 
-Version: 1.0 (Beta)
+Version: 1.1 (Beta)
 
 Last Updated: 2025-06-05
 
