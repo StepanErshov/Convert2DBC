@@ -4,7 +4,7 @@ Version: 1.0 (Beta)
 
 Last Updated: 2025-06-05
 
-Working link: [Converter2dbc.app](https://convert2dbc.streamlit.app/)
+Working link: [Converter2dbc.app](https://convert2dbc-beta.streamlit.app/)
 
 ## Описание
 
