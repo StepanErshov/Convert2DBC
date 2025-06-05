@@ -4,8 +4,6 @@ from xlsx2dbc import ExcelToDBCConverter
 import os
 from datetime import datetime
 import re
-from PIL import Image
-import io
 
 st.set_page_config(
     page_title="Excel to DBC Converter",
@@ -63,12 +61,7 @@ def generate_default_output_filename(input_filename, new_version=None):
     return f"{base_name}_V{new_version}_{current_date}.dbc"
 
 def main():
-    st.markdown("""
-    <h1 class="title" style="display: flex; align-items: center; gap: 10px;">
-        <img src="Convert2DBC/EEA team.png" width="32" height="32">
-        Excel to DBC Converter
-    </h1>
-    """, unsafe_allow_html=True)
+    st.markdown('<h1 class="title">📊 Excel to DBC Converter</h1>', unsafe_allow_html=True)
     st.markdown("Upload your Excel file containing CAN data to convert it to a DBC file.")
     
     col1, col2 = st.columns([3, 1])
