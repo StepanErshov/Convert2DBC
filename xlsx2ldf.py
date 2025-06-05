@@ -1,6 +1,6 @@
 import ldfparser
 from ldfparser.lin import LinVersion
-from ldfparser import LDF, LinMaster, LinSlave, LinFrame, LinSignal, save_ldf
+from ldfparser import LDF, LinMaster, LinSlave, LinNode, LinFrame, LinSignal, LinNodeComposition, LinNodeCompositionConfiguration,save_ldf
 import pandas as pd
 from typing import Optional, Dict
 import re
@@ -72,14 +72,14 @@ class ExcelToLDFConverter:
             engine="openpyxl"
         )
 
-        df_info = pd.read_excel(
+        self.df_info = pd.read_excel(
             self.excel_path, 
             sheet_name="Info",
             keep_default_na=True,
             engine="openpyxl"
         )
 
-        df_schedule = pd.read_excel(
+        self.df_schedule = pd.read_excel(
             self.excel_path,
             sheet_name="LIN Schedule",
             keep_default_na=True,
@@ -93,10 +93,11 @@ class ExcelToLDFConverter:
             and col != "Unit\n单位"
         ]
 
-        self.ldf_version = LinVersion(df_info.iloc[1, 0], 
-                                      df_info.iloc[1, 0])
+        self.ldf_version = LinVersion(self.df_info.iloc[1, 0], 
+                                      self.df_info.iloc[1, 0])
         self.master = LinMaster()
         self.slave = LinSlave()
+        self.nodes = LinNode()
         
     def _load_excel_data(self) -> pd.DataFrame:
         df = pd.read_excel(
@@ -156,6 +157,16 @@ class ExcelToLDFConverter:
         )
         new_df = new_df.dropna(subset=["Signal Name"])
 
+        return new_df
+    
+    # def _create_signals(self, row: pd.Series):
+    #     try:
+
+
+    #     except Exception as e:
+    #         print(e)
+        
+    #     return
 
 
 

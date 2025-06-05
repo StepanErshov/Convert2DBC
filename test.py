@@ -4,10 +4,10 @@ import pandas as pd
 from ldfparser import LDF, LinFrame, LinSignal, LinSignalEncodingType, LinUnconditionalFrame
 import canmatrix
 import lin
+from ctypes import *
 from lin.interfaces.peak import PLinApi, LinBus
 from lin.interfaces.peak.PLinApi import TLINVersion
 
-from ctypes import *
 
 # ldf = canmatrix.CanMatrix()
 protectedId=int("0x97", 16)
