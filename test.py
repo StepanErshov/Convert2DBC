@@ -3,38 +3,69 @@ from openpyxl import load_workbook
 import pandas as pd
 from ldfparser import LDF, LinFrame, LinSignal, LinSignalEncodingType, LinUnconditionalFrame
 import canmatrix
+import lin
+from lin.interfaces.peak import PLinApi, LinBus
+from lin.interfaces.peak.PLinApi import TLINVersion
 
-ldf = canmatrix.CanMatrix()
+from ctypes import *
 
-ldf.protocol = "LIN"
+# ldf = canmatrix.CanMatrix()
+protectedId=int("0x97", 16)
+payload=[1, 2, 3, 4, 5, 6]
+
+ldf = LinBus.LinMessage()
+
+version = TLINVersion()
+
+version.Major = 2
+version.Minor = 1
+version.Revision = 5
+version.Build = 1234
+
+print(version.Major)
+
+# bus = LinBus()
+
+
+ldf.frameId = int("0x17", 16)
+
+ldf.protectedId = protectedId
+
+ldf.payload=payload
+
+
+print(ldf)
+
+
+# ldf.protocol = "LIN"
 
 # ldf.add_node("Master") 
 # ldf.add_node("Slave1")
 
-ldf.add_attribute("Master", "ECU1")
-ldf.add_attribute("Slave", "ECU2")
-signal = canmatrix.Signal(
-    name="EngineSpeed",
-    size=8,
-    initial_value=0,
-    min=0,
-    max=255,
-    unit="RPM",
-    receivers=["Slave1"]
-)
+# ldf.add_attribute("Master", "ECU1")
+# ldf.add_attribute("Slave", "ECU2")
+# signal = canmatrix.Signal(
+#     name="EngineSpeed",
+#     size=8,
+#     initial_value=0,
+#     min=0,
+#     max=255,
+#     unit="RPM",
+#     receivers=["Slave1"]
+# )
 
-frame = canmatrix.Frame(
-    name="EngineData",
-    arbitration_id=0x10,  
-    size=1,  
-    transmitters=["Master"],
-    receivers=["Slave1"],
-)
-frame.add_signal(signal)
+# frame = canmatrix.Frame(
+#     name="EngineData",
+#     arbitration_id=0x10,  
+#     size=1,  
+#     transmitters=["Master"],
+#     receivers=["Slave1"],
+# )
+# frame.add_signal(signal)
 
-ldf.add_frame(frame)
+# ldf.add_frame(frame)
 
-canmatrix.formats.dump(ldf, "example", export_type="ldf")
+# canmatrix.formats.dump(ldf, "example", export_type="ldf")
 
 # def xlsx_to_ldf(input_xlsx: str, output_ldf: str):
 #     # Загрузка Excel

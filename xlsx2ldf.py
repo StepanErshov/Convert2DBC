@@ -1,9 +1,9 @@
 import ldfparser
 from ldfparser.lin import LinVersion
+from ldfparser import LDF, LinMaster, LinSlave, LinFrame, LinSignal, save_ldf
 import pandas as pd
 from typing import Optional, Dict
 import re
-# ldfparser.save_ldf
 
 class ValueDescriptionParser:
     
@@ -62,7 +62,8 @@ class ValueDescriptionParser:
 class ExcelToLDFConverter:
     def __init__(self, excel_path: str):
         self.excel_path = excel_path
-        self.ldf_version = LinVersion(2.1, 2.1)
+        self.ldf = LDF()
+        
 
         df = pd.read_excel(
             self.excel_path,
@@ -71,14 +72,32 @@ class ExcelToLDFConverter:
             engine="openpyxl"
         )
 
+        df_info = pd.read_excel(
+            self.excel_path, 
+            sheet_name="Info",
+            keep_default_na=True,
+            engine="openpyxl"
+        )
+
+        df_schedule = pd.read_excel(
+            self.excel_path,
+            sheet_name="LIN Schedule",
+            keep_default_na=True,
+            engine="openpyxl"
+        )
+        
         self.bus_users = [
             col 
             for col in df.columns
             if any(val in ["S", "R"] for val in df[col].dropna().unique())
             and col != "Unit\n单位"
         ]
-        
 
+        self.ldf_version = LinVersion(df_info.iloc[1, 0], 
+                                      df_info.iloc[1, 0])
+        self.master = LinMaster()
+        self.slave = LinSlave()
+        
     def _load_excel_data(self) -> pd.DataFrame:
         df = pd.read_excel(
             self.excel_path,
@@ -136,7 +155,6 @@ class ExcelToLDFConverter:
             }
         )
         new_df = new_df.dropna(subset=["Signal Name"])
-        print(new_df.head(20))
 
 
 
