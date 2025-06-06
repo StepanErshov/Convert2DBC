@@ -7,7 +7,7 @@ import pandas as pd
 from typing import Optional, Dict
 import re
 import argparse
-
+import pprint
 
 class ValueDescriptionParser:
     
@@ -224,34 +224,41 @@ class ExcelToLDFConverter:
 
     def _create_frames(self, frame_id: int, frame_name: str,  group: pd.DataFrame) -> bool:
         try:
-
-            signals = []
-            for _, row in group.iterrows():
+            signals = {}
+            # print(group)
+            for i, row in group.iterrows():
                 signal = self._create_signals(row)
                 if signal:
-                    signals.append(signal)
-
+                    start_bit = int(row["Start Bit"])
+                    signals[start_bit] = signal
+            
             if not signals:
                 return False
+            
+            frm_length = int(group["Msg Length"].iloc[0])
+            print(group["Senders"].iloc[0])
 
             unconditional_frame = LinUnconditionalFrame(
-                frame_id=frame_id,
+                frame_id=int(frame_id, 16),
                 name=frame_name,
-                length=int(group["Msg Length"]),
+                length=frm_length,
                 signals=signals,
                 pad_with_zero=True)
             
+
+            unconditional_frame.publisher = "DCM_FL"
+
             self.ldf._unconditional_frames[unconditional_frame.name] = unconditional_frame
 
             return True
         except Exception as e:
-            print(f"Error creating message {frame_name}: {str(e)}")
+            print(f"Error creating frame {frame_name}: {str(e)}")
             return False
         
     def convert(self, output_path: str = "out.ldf") -> bool:
         try:
             df = self._load_excel_data()
-            grouped = df.groupby(["Msg ID", "Msg Name"])
+            grouped = df.groupby(["Msg ID", "Msg name"])
 
             for (frm_id, frm_name), group in grouped:
                 self._create_frames(frm_id, frm_name, group)
