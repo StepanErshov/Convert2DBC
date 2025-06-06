@@ -6,6 +6,8 @@ from ldfparser import LDF, LinMaster, LinSlave, LinFrame, LinSignal, LinNodeComp
 import pandas as pd
 from typing import Optional, Dict
 import re
+import argparse
+
 
 class ValueDescriptionParser:
     
@@ -147,8 +149,8 @@ class ExcelToLDFConverter:
 
         new_df = pd.DataFrame(
             {
-                "Message name":df['Msg Name\n报文名称'].ffill(), 
-                "Message ID": df['Msg ID(hex)\n报文标识符'].ffill(), 
+                "Msg name":df['Msg Name\n报文名称'].ffill(), 
+                "Msg ID": df['Msg ID(hex)\n报文标识符'].ffill(), 
                 "Protected Id": df['Protected ID (hex)\n保护标识符'].ffill(),
                 "Msg Send Type": df['Msg Send Type\n报文发送类型'].ffill(), 
                 "Checksum mode": df['Checksum mode\n校验方式'].ffill(),
@@ -176,7 +178,7 @@ class ExcelToLDFConverter:
         )
         new_df = new_df.dropna(subset=["Signal Name"])
         self.ldf.frame = self.frame
-        save_ldf(self.ldf, "out.ldf", "C:\\projects\\Convert2DBC\\ldf.jinja2")
+        
         
         return new_df
     
@@ -205,21 +207,80 @@ class ExcelToLDFConverter:
             #         self.slave.append(slaves)
             signal_dict = {}
             
-            self.signal = LinSignal(
+            signal = LinSignal(
                 name=str(row["Signal Name"]),
                 width=int(row["Bit Length"]),
                 init_value=int(row["Init value"], 16),
             )
 
-            self.signal.publisher = LinNode(row["Senders"]) 
-            self.signal.subscribers = [LinNode(row["Receivers"])]
+            signal.publisher = LinNode(row["Senders"]) 
+            signal.subscribers = [LinNode(row["Receivers"])]
 
-            return self.signal
+            return signal
 
         except Exception as e:
             print(f"Error creating signal {row['Signal Name']}: {str(e)}")
             return None
 
+    def _create_frames(self, frame_id: int, frame_name: str,  group: pd.DataFrame) -> bool:
+        try:
+
+            signals = []
+            for _, row in group.iterrows():
+                signal = self._create_signals(row)
+                if signal:
+                    signals.append(signal)
+
+            if not signals:
+                return False
+
+            unconditional_frame = LinUnconditionalFrame(
+                frame_id=frame_id,
+                name=frame_name,
+                length=int(group["Msg Length"]),
+                signals=signals,
+                pad_with_zero=True)
+            
+            self.ldf._unconditional_frames[unconditional_frame.name] = unconditional_frame
+
+            return True
+        except Exception as e:
+            print(f"Error creating message {frame_name}: {str(e)}")
+            return False
+        
+    def convert(self, output_path: str = "out.ldf") -> bool:
+        try:
+            df = self._load_excel_data()
+            grouped = df.groupby(["Msg ID", "Msg Name"])
+
+            for (frm_id, frm_name), group in grouped:
+                self._create_frames(frm_id, frm_name, group)
+
+            save_ldf(self.ldf, "out.ldf", "C:\\projects\\Convert2DBC\\ldf.jinja2")
+
+            print(f"LDF-file successfully created: {output_path}")
+            return True
+        except Exception as e:
+            print(f"Error during conversion: {str(e)}")
+            return False
+        
+
+def main():
+    parser = argparse.ArgumentParser(description="Convert Excel-files to LDF-files")
+    parser.add_argument("--input", required=True, help="Path to Excel-file")
+    parser.add_argument("--output", required="output.ldf", help="Output name LDF-file")
+    args = parser.parse_args()
+
+    converter = ExcelToLDFConverter(args.input)
+    if converter.convert(args.output):
+        print("Conversion completed successfully")
+    else:
+        print("Conversion failed")
+
+if __name__ == "__main__":
+    main()
+
+# print(ExcelToLDFConverter("C:\\projects\\Convert2DBC\\ATOM_LIN_Matrix_DCM_FL-ALM_FL_V4.0.0-20250121.xlsx")._load_excel_data())
 
 
-print(ExcelToLDFConverter("C:\\projects\\Convert2DBC\\ATOM_LIN_Matrix_DCM_FL-ALM_FL_V4.0.0-20250121.xlsx")._load_excel_data())
+# python xlsx2ldf.py --input "C:\\projects\\Convert2DBC\\ATOM_LIN_Matrix_DCM_FL-ALM_FL_V4.0.0-20250121.xlsx" --output "out.ldf"
