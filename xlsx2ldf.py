@@ -215,7 +215,7 @@ class ExcelToLDFConverter:
 
             signal.publisher = LinNode(row["Senders"]) 
             signal.subscribers = [LinNode(row["Receivers"])]
-
+            
             return signal
 
         except Exception as e:
@@ -225,18 +225,27 @@ class ExcelToLDFConverter:
     def _create_frames(self, frame_id: int, frame_name: str,  group: pd.DataFrame) -> bool:
         try:
             signals = {}
-            # print(group)
+            sig_ldf = {}
             for i, row in group.iterrows():
                 signal = self._create_signals(row)
                 if signal:
+                    sig_ldf[signal.name] = signal
                     start_bit = int(row["Start Bit"])
                     signals[start_bit] = signal
+
+            self.ldf._signals = sig_ldf
             
             if not signals:
                 return False
             
             frm_length = int(group["Msg Length"].iloc[0])
-            print(group["Senders"].iloc[0])
+            publisher_name = group["Senders"].iloc[0]
+            publisher = None
+
+            if publisher_name in self.ldf._slaves:
+                publisher = self.ldf._slaves[publisher_name]
+            elif publisher_name == self.master.name:
+                publisher = self.master
 
             unconditional_frame = LinUnconditionalFrame(
                 frame_id=int(frame_id, 16),
@@ -246,8 +255,7 @@ class ExcelToLDFConverter:
                 pad_with_zero=True)
             
 
-            unconditional_frame.publisher = "DCM_FL"
-
+            unconditional_frame.publisher = publisher
             self.ldf._unconditional_frames[unconditional_frame.name] = unconditional_frame
 
             return True
