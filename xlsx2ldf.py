@@ -203,6 +203,7 @@ class ExcelToLDFConverter:
             #     else:
             #         slaves = [str[row["Receivers"]]]
             #         self.slave.append(slaves)
+            signal_dict = {}
             
             self.signal = LinSignal(
                 name=str(row["Signal Name"]),
@@ -213,12 +214,11 @@ class ExcelToLDFConverter:
             self.signal.publisher = LinNode(row["Senders"]) 
             self.signal.subscribers = [LinNode(row["Receivers"])]
 
-            return 
+            return self.signal
 
         except Exception as e:
-            print(e)
-        
-        return
+            print(f"Error creating signal {row['Signal Name']}: {str(e)}")
+            return None
 
 
 

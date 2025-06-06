@@ -67,6 +67,14 @@ Signals {
     {%- endfor %}
 }
 
+{%- if ldf.diagnostic_signals %}
+Diagnostic_signals {
+{%- for signal in ldf.diagnostic_signals %}
+    {{ signal.name }}: {{ signal.size }}, {{ signal.offset }} ;
+{%- endfor %}
+}
+{%- endif %}
+
 Frames {
     {%- for frame in ldf.get_unconditional_frames() %}
     {{frame.name}}: {{frame.frame_id}}, {{frame.publisher.name}}, {{frame.length}} {
