@@ -1,4 +1,5 @@
 *.xlsx
+*.xls
 *.dbc
 .DS_Store
 Thumbs.db

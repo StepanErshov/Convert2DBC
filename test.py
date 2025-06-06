@@ -19,7 +19,7 @@ ldf = LDF()
 
 ldf._protocol_version = LinVersion(2, 1)
 ldf._language_version = LinVersion(2, 1)
-)
+
 
 ldf._baudrate = 19200   
 ldf._channel = "LIN1"   

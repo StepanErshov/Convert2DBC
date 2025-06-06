@@ -95,23 +95,27 @@ class ExcelToLDFConverter:
             and col != "Unit\n单位"
         ]
 
-        self.ldf_version = LinVersion(self.df_info.iloc[1, 0], 
-                                      self.df_info.iloc[1, 0])
+        self.ldf_version = LinVersion(str(self.df_info.iloc[1, 0]).strip(".")[0], 
+                                      str(self.df_info.iloc[1, 0]).strip(".")[2])
+        
+        self.ldf._protocol_version = self.ldf_version
+        self.ldf._language_version = self.ldf_version
+        self.ldf._baudrate = self.df_info.iloc[1, 1] * 1000
+
+
         self.master = LinMaster(name=self.bus_users[0],
-                                timebase=self.df_info.iloc[1, 2],
-                                jitter=float(self.df_info.iloc[1, 3]),
-                                max_header_length=8,
-                                response_tolerance=0.1)
-        self.slave = LinSlave(name=self.bus_users[1])
-        self.nodes = LinNode(name="ABVGD")
+                                timebase=self.df_info.iloc[1, 2] / 1000,
+                                jitter=float(self.df_info.iloc[1, 3]) / 1000,
+                                max_header_length=None,
+                                response_tolerance=None)
+        
+
+        for user in self.bus_users[1:]:
+            self.slave = LinSlave(name=user)
        
-        self.unframe = LinUnconditionalFrame(frame_id=1,
-                                             name="First_frame",
-                                             length=8,
-                                             signals={0: LinSignal("DCM_FL_AmbientLightReq", 1, 0),
-                                                      1: LinSignal("DCM_FL_InLightWelReq", 1, 0),
-                                                      2: LinSignal("DCM_FL_InLightShaWelReq", 1, 0)},
-                                                      pad_with_zero=True)
+        self.ldf._master = self.master
+        self.ldf._slaves[self.slave.name] = self.slave
+
         self.frame = LinFrame(frame_id=1, name="First_frame")
         
     def _load_excel_data(self) -> pd.DataFrame:
@@ -172,7 +176,7 @@ class ExcelToLDFConverter:
         )
         new_df = new_df.dropna(subset=["Signal Name"])
         self.ldf.frame = self.frame
-        save_ldf(self.ldf, "out.ldf", "C:\\projects\\Convert2DBC\\empty.ldf")
+        save_ldf(self.ldf, "out.ldf", "C:\\projects\\Convert2DBC\\ldf.jinja2")
         
         return new_df
     
@@ -191,15 +195,24 @@ class ExcelToLDFConverter:
                     row["Sig Val Description"]
                 )
 
-            slaves = []
-            if pd.notna(row["Receivers"]):
-                if isinstance(row["Receivers"], str):
-                    slaves = [row["Receivers"].split(",")]
-                    self.slave.append(slaves) 
-                else:
-                    slaves = [str[row["Receivers"]]]
-                    self.slave.append(slaves)
+            # slaves = []
+            # if pd.notna(row["Receivers"]):
+            #     if isinstance(row["Receivers"], str):
+            #         slaves = [row["Receivers"].split(",")]
+            #         self.slave.append(slaves) 
+            #     else:
+            #         slaves = [str[row["Receivers"]]]
+            #         self.slave.append(slaves)
             
+            self.signal = LinSignal(
+                name=str(row["Signal Name"]),
+                width=int(row["Bit Length"]),
+                init_value=int(row["Init value"], 16),
+            )
+
+            self.signal.publisher = LinNode(row["Senders"]) 
+            self.signal.subscribers = [LinNode(row["Receivers"])]
+
             return 
 
         except Exception as e:
