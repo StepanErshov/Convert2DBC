@@ -7,34 +7,84 @@ import lin
 from ctypes import *
 from lin.interfaces.peak import PLinApi, LinBus
 from lin.interfaces.peak.PLinApi import TLINVersion
+from ldfparser import LDF
+from ldfparser.frame import LinUnconditionalFrame
+from ldfparser.signal import LinSignal
+from ldfparser.node import LinMaster, LinSlave
+from ldfparser.lin import LinVersion
+from ldfparser import save_ldf
+
+# 1. Создаём LDF
+ldf = LDF()
+
+# 2. Устанавливаем версию протокола (например LIN 2.1)
+ldf._protocol_version = LinVersion(2, 1)
+ldf._language_version = LinVersion(2, 1)
+
+# 3. Задаём baudrate и канал
+ldf._baudrate = 19200   # Обязательно!
+ldf._channel = "LIN1"   # Название канала, можно любое строковое значение
+
+# 4. Создаём мастер и слейв узлы
+master = LinMaster(
+    name="Master",
+    timebase=0.01,
+    jitter=0.001,
+    max_header_length=8,
+    response_tolerance=0.1
+)
+slave = LinSlave(name="SlaveNode")
+
+# 5. Сохраняем мастер и слейвы в LDF
+ldf._master = master
+ldf._slaves[slave.name] = slave
+
+# 6. Создаём сигналы
+signal1 = LinSignal(name="AmbientLight", width=1, init_value=0)
+signal2 = LinSignal(name="InteriorLight", width=1, init_value=0)
+
+# 7. Создаём кадр (Unconditional Frame)
+frame = LinUnconditionalFrame(
+    frame_id=0x10,
+    name="LightControl",
+    length=8,
+    signals={1: signal1, 2: signal2},
+    pad_with_zero=True
+)
+
+# 8. Добавляем кадр в LDF
+ldf._unconditional_frames[frame.name] = frame
+
+# 9. Сохраняем в файл
+save_ldf(ldf, "output.ldf", "C:\\projects\\Convert2DBC\\ldf.jinja2")
 
 
-# ldf = canmatrix.CanMatrix()
-protectedId=int("0x97", 16)
-payload=[1, 2, 3, 4, 5, 6]
+# # ldf = canmatrix.CanMatrix()
+# protectedId=int("0x97", 16)
+# payload=[1, 2, 3, 4, 5, 6]
 
-ldf = LinBus.LinMessage()
+# ldf = LinBus.LinMessage()
 
-version = TLINVersion()
+# version = TLINVersion()
 
-version.Major = 2
-version.Minor = 1
-version.Revision = 5
-version.Build = 1234
+# version.Major = 2
+# version.Minor = 1
+# version.Revision = 5
+# version.Build = 1234
 
-print(version.Major)
+# print(version.Major)
 
-# bus = LinBus()
-
-
-ldf.frameId = int("0x17", 16)
-
-ldf.protectedId = protectedId
-
-ldf.payload=payload
+# # bus = LinBus()
 
 
-print(ldf)
+# ldf.frameId = int("0x17", 16)
+
+# ldf.protectedId = protectedId
+
+# ldf.payload=payload
+
+
+# print(ldf)
 
 
 # ldf.protocol = "LIN"

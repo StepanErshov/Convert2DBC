@@ -1,6 +1,8 @@
 import ldfparser
 from ldfparser.lin import LinVersion
-from ldfparser import LDF, LinMaster, LinSlave, LinNode, LinFrame, LinSignal, LinNodeComposition, LinNodeCompositionConfiguration,save_ldf
+from ldfparser.node import LinNode
+from ldfparser.frame import LinFrame, LinUnconditionalFrame, LinSporadicFrame
+from ldfparser import LDF, LinMaster, LinSlave, LinFrame, LinSignal, LinNodeComposition, LinNodeCompositionConfiguration, save_ldf
 import pandas as pd
 from typing import Optional, Dict
 import re
@@ -95,9 +97,22 @@ class ExcelToLDFConverter:
 
         self.ldf_version = LinVersion(self.df_info.iloc[1, 0], 
                                       self.df_info.iloc[1, 0])
-        self.master = LinMaster()
-        self.slave = LinSlave()
-        self.nodes = LinNode()
+        self.master = LinMaster(name=self.bus_users[0],
+                                timebase=self.df_info.iloc[1, 2],
+                                jitter=float(self.df_info.iloc[1, 3]),
+                                max_header_length=8,
+                                response_tolerance=0.1)
+        self.slave = LinSlave(name=self.bus_users[1])
+        self.nodes = LinNode(name="ABVGD")
+       
+        self.unframe = LinUnconditionalFrame(frame_id=1,
+                                             name="First_frame",
+                                             length=8,
+                                             signals={0: LinSignal("DCM_FL_AmbientLightReq", 1, 0),
+                                                      1: LinSignal("DCM_FL_InLightWelReq", 1, 0),
+                                                      2: LinSignal("DCM_FL_InLightShaWelReq", 1, 0)},
+                                                      pad_with_zero=True)
+        self.frame = LinFrame(frame_id=1, name="First_frame")
         
     def _load_excel_data(self) -> pd.DataFrame:
         df = pd.read_excel(
@@ -156,17 +171,41 @@ class ExcelToLDFConverter:
             }
         )
         new_df = new_df.dropna(subset=["Signal Name"])
-
+        self.ldf.frame = self.frame
+        save_ldf(self.ldf, "out.ldf", "C:\\projects\\Convert2DBC\\empty.ldf")
+        
         return new_df
     
-    # def _create_signals(self, row: pd.Series):
-    #     try:
+    def _create_signals(self, row: pd.Series):
+        try:
+            comment = str(row["Sig Description"]) if pd.notna(row["Sig Description"]) else ""
+            comment = re.sub(r"[\u4e00-\u9fff]+", "", comment)
+            comment = str.replace(comment, "/", "")
+            comment = str.replace(comment, "\n", "")
+            unit = str(row["Unit"]) if pd.notna(row["Unit"]) else ""
+            unit = str.replace(unit, "nan", "")
 
+            value_description = None
+            if pd.notna(row["Sig Val Description"]):
+                value_description = ValueDescriptionParser.parse(
+                    row["Sig Val Description"]
+                )
 
-    #     except Exception as e:
-    #         print(e)
+            slaves = []
+            if pd.notna(row["Receivers"]):
+                if isinstance(row["Receivers"], str):
+                    slaves = [row["Receivers"].split(",")]
+                    self.slave.append(slaves) 
+                else:
+                    slaves = [str[row["Receivers"]]]
+                    self.slave.append(slaves)
+            
+            return 
+
+        except Exception as e:
+            print(e)
         
-    #     return
+        return
 
 
 
