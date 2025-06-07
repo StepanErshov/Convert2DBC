@@ -99,6 +99,18 @@ Frames {
     {%- endfor %}
 }
 
+{%- if ldf.get_diagnostic_frames() | length > 0 %}
+Diagnostic_frames {
+    {%- for frame in ldf.get_diagnostic_frames() %}
+    {{ frame.name }}: {{ "0x%02x" | format(frame.frame_id) }} {
+        {%- for signal in frame.signal_map %}
+        {{ signal[1].name }}, {{ signal[0] }} ;
+        {%- endfor %}
+    }
+    {%- endfor %}
+}
+{%- endif %}
+
 {%- if ldf.get_event_triggered_frames() | length > 0 %}
 Event_triggered_frames {
     {%- for frame in ldf.get_event_triggered_frames() %}
