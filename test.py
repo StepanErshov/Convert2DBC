@@ -15,6 +15,8 @@ from ldfparser.lin import LinVersion
 from ldfparser import save_ldf
 from ldfparser.node import LinNode
 
+
+print(int("0x3C", 16))
 ldf = LDF()
 
 ldf._protocol_version = LinVersion(2, 1)

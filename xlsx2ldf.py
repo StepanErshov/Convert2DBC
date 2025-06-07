@@ -1,5 +1,5 @@
 import ldfparser
-from ldfparser.schedule import ScheduleTable, ScheduleTableEntry
+from ldfparser.schedule import ScheduleTable, ScheduleTableEntry, LinFrameEntry
 from ldfparser.lin import LinVersion
 from ldfparser.node import LinNode
 from ldfparser.frame import LinFrame, LinUnconditionalFrame, LinSporadicFrame
@@ -205,7 +205,7 @@ class ExcelToLDFConverter:
             }
         )
 
-        df_schedule = df_schedule.iloc[2:].reset_index(drop=True)
+        df_schedule = df_schedule.iloc[1:].reset_index(drop=True)
 
         new_df = new_df.dropna(subset=["Signal Name"])
         self.ldf.frame = self.frame
@@ -255,48 +255,64 @@ class ExcelToLDFConverter:
     
     def _create_schedule_tables(self, df_schedule: pd.DataFrame):
         try:
-            # Skip rows that don't contain actual data
-            df_schedule = df_schedule.iloc[1:].reset_index(drop=True).dropna(how='all')
-            print(df_schedule)
-            # Find columns that contain slot information
             schedule_columns = []
-            for col in df_schedule.columns:
-                if "Slot" in str(col) or "时隙" in str(col):  # Handle both English and Chinese
-                    schedule_columns.append(col)
 
-            # Process each schedule column group
-            for i, slot_col in enumerate(schedule_columns):
-                # Find corresponding message and delay columns
-                msg_col = df_schedule.columns[df_schedule.columns.get_loc(slot_col)+1]
-                delay_col = df_schedule.columns[df_schedule.columns.get_loc(slot_col)+2]
-                
-                schedule_name = f"Schedule_{i+1}"
+            for col_name, column in df_schedule.items():
+                first_value = column.iloc[0]
+
+                if pd.isna(first_value) or not isinstance(first_value, str):
+                    continue
+                else:
+                    schedule_columns.append(first_value)
+
+            for schedule_name in schedule_columns:
+                matching_cols = [
+                    col for col in df_schedule.columns
+                    if str(df_schedule[col].iloc[0]) == schedule_name
+                ]
+
+                if not matching_cols:
+                    print(f"No matching column found for schedule '{schedule_name}'")
+                    continue
+
+                slot_col = matching_cols[0]
+                msg_col = df_schedule.columns[df_schedule.columns.get_loc(slot_col) + 1]
+                delay_col = df_schedule.columns[df_schedule.columns.get_loc(slot_col) + 2]
+
                 entries = []
 
-                for _, row in df_schedule[[slot_col, msg_col, delay_col]].iterrows():
+                for _, row in df_schedule[[slot_col, msg_col, delay_col]].iloc[2:].iterrows():
                     if pd.isna(row[msg_col]):
                         continue
-                        
+
                     try:
                         msg_id = int(str(row[msg_col]).strip(), 16)
                         delay = float(row[delay_col]) if pd.notna(row[delay_col]) else 0.0
                         
-                        frame = next((f for f in self.ldf._unconditional_frames.values() 
-                                    if f.frame_id == msg_id), None)
-                        if frame:
-                            entries.append(ScheduleTableEntry(frame=frame, delay=delay))
+                        frame = next(
+                            (f for f in self.ldf._unconditional_frames.values()
+                            if f.frame_id == msg_id),
+                            None
+                        )
+
+                        if frame and frame != None:
+                            entry_frame = LinFrameEntry()
+                            entry_frame.frame = frame
+                            entry_frame.delay = delay / 1000
+                            entries.append(entry_frame)
+
                     except ValueError as e:
                         print(f"Invalid message ID or delay in row {_}: {e}")
                         continue
-                
+
                 if entries:
                     schedule_table = ScheduleTable(name=schedule_name)
                     schedule_table.schedule = entries
                     self.ldf._schedule_tables[schedule_table.name] = schedule_table
-                    
+
         except Exception as e:
             print(f"Error creating schedule tables: {str(e)}")
-        
+            
     def _create_frames(
         self, frame_id: int, frame_name: str, group: pd.DataFrame
     ) -> bool:
@@ -388,4 +404,4 @@ if __name__ == "__main__":
 
 
 # python xlsx2ldf.py --input "C:\\projects\\Convert2DBC\\ATOM_LIN_Matrix_DCM_FL-ALM_FL_V4.0.0-20250121.xlsx" --output "out.ldf"
-# python xlsx2ldf.py --input C:\projects\Convert2DBC\ATOM_LIN_Matrix_BCM-FRL&RRL&RLS_internal_2.2.0.xls --output "out.ldf" <- engine="xlrd"
+# python xlsx2ldf.py --input "C:\projects\Convert2DBC\ATOM_LIN_Matrix_BCM-FRL&RRL&RLS_V3.2.0-20241206.xls" --output "out.ldf"
