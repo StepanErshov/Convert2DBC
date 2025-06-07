@@ -7,3 +7,4 @@ pyodc==1.5.0
 ldfparser==0.26.0
 python-lin==0.1.1
 canmatrix==1.2
+xlrd==2.0.1

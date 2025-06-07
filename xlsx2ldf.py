@@ -1,4 +1,5 @@
 import ldfparser
+from ldfparser.schedule import ScheduleTable, ScheduleTableEntry
 from ldfparser.lin import LinVersion
 from ldfparser.node import LinNode
 from ldfparser.frame import LinFrame, LinUnconditionalFrame, LinSporadicFrame
@@ -78,26 +79,36 @@ class ValueDescriptionParser:
 
 
 class ExcelToLDFConverter:
+    
+    def _get_engine(self, file_path: str) -> str:
+        if file_path.endswith('.xls'):
+            return 'xlrd'
+        elif file_path.endswith(('.xlsx', '.xlsm')):
+            return 'openpyxl'
+        else:
+            raise ValueError(f"Unsupported Excel file extension: {file_path}")
+    
     def __init__(self, excel_path: str):
         self.excel_path = excel_path
         self.ldf = LDF()
+        self.engine = self._get_engine(self.excel_path)
 
         df = pd.read_excel(
             self.excel_path,
             sheet_name="Matrix",
             keep_default_na=True,
-            engine="openpyxl",
+            engine=self.engine,
         )
 
         self.df_info = pd.read_excel(
-            self.excel_path, sheet_name="Info", keep_default_na=True, engine="openpyxl"
+            self.excel_path, sheet_name="Info", keep_default_na=True, engine=self.engine
         )
 
         self.df_schedule = pd.read_excel(
             self.excel_path,
             sheet_name="LIN Schedule",
             keep_default_na=True,
-            engine="openpyxl",
+            engine=self.engine,
         )
 
         self.bus_users = [
@@ -137,7 +148,14 @@ class ExcelToLDFConverter:
             self.excel_path,
             sheet_name="Matrix",
             keep_default_na=True,
-            engine="openpyxl",
+            engine=self.engine,
+        )
+
+        df_schedule = pd.read_excel(
+            self.excel_path,
+            sheet_name="LIN Schedule",
+            keep_default_na=True,
+            engine=self.engine,
         )
 
         senders = []
@@ -186,12 +204,15 @@ class ExcelToLDFConverter:
                 "Receivers": receivers,
             }
         )
+
+        df_schedule = df_schedule.iloc[2:].reset_index(drop=True)
+
         new_df = new_df.dropna(subset=["Signal Name"])
         self.ldf.frame = self.frame
 
-        return new_df
+        return new_df, df_schedule
 
-    def _create_signals(self, row: pd.Series):
+    def _create_signals(self, row: pd.Series) -> LinSignal:
         try:
             comment = (
                 str(row["Sig Description"]) if pd.notna(row["Sig Description"]) else ""
@@ -231,7 +252,51 @@ class ExcelToLDFConverter:
         except Exception as e:
             print(f"Error creating signal {row['Signal Name']}: {str(e)}")
             return None
+    
+    def _create_schedule_tables(self, df_schedule: pd.DataFrame):
+        try:
+            # Skip rows that don't contain actual data
+            df_schedule = df_schedule.iloc[1:].reset_index(drop=True).dropna(how='all')
+            print(df_schedule)
+            # Find columns that contain slot information
+            schedule_columns = []
+            for col in df_schedule.columns:
+                if "Slot" in str(col) or "时隙" in str(col):  # Handle both English and Chinese
+                    schedule_columns.append(col)
 
+            # Process each schedule column group
+            for i, slot_col in enumerate(schedule_columns):
+                # Find corresponding message and delay columns
+                msg_col = df_schedule.columns[df_schedule.columns.get_loc(slot_col)+1]
+                delay_col = df_schedule.columns[df_schedule.columns.get_loc(slot_col)+2]
+                
+                schedule_name = f"Schedule_{i+1}"
+                entries = []
+
+                for _, row in df_schedule[[slot_col, msg_col, delay_col]].iterrows():
+                    if pd.isna(row[msg_col]):
+                        continue
+                        
+                    try:
+                        msg_id = int(str(row[msg_col]).strip(), 16)
+                        delay = float(row[delay_col]) if pd.notna(row[delay_col]) else 0.0
+                        
+                        frame = next((f for f in self.ldf._unconditional_frames.values() 
+                                    if f.frame_id == msg_id), None)
+                        if frame:
+                            entries.append(ScheduleTableEntry(frame=frame, delay=delay))
+                    except ValueError as e:
+                        print(f"Invalid message ID or delay in row {_}: {e}")
+                        continue
+                
+                if entries:
+                    schedule_table = ScheduleTable(name=schedule_name)
+                    schedule_table.schedule = entries
+                    self.ldf._schedule_tables[schedule_table.name] = schedule_table
+                    
+        except Exception as e:
+            print(f"Error creating schedule tables: {str(e)}")
+        
     def _create_frames(
         self, frame_id: int, frame_name: str, group: pd.DataFrame
     ) -> bool:
@@ -279,12 +344,21 @@ class ExcelToLDFConverter:
 
     def convert(self, output_path: str = "out.ldf") -> bool:
         try:
-            df = self._load_excel_data()
+            df, df_sch = self._load_excel_data()
             grouped = df.groupby(["Msg ID", "Msg name"])
-
+            
+            if df is None or df.empty:
+                print("No valid data found in Matrix sheet")
+                return False
+            
             for (frm_id, frm_name), group in grouped:
                 self._create_frames(frm_id, frm_name, group)
-
+            
+            if not df_sch.empty:
+                self._create_schedule_tables(df_sch)
+            else:
+                print("No schedule information found")
+            
             save_ldf(self.ldf, "out.ldf", "C:\\projects\\Convert2DBC\\ldf.jinja2")
 
             print(f"LDF-file successfully created: {output_path}")
@@ -314,3 +388,4 @@ if __name__ == "__main__":
 
 
 # python xlsx2ldf.py --input "C:\\projects\\Convert2DBC\\ATOM_LIN_Matrix_DCM_FL-ALM_FL_V4.0.0-20250121.xlsx" --output "out.ldf"
+# python xlsx2ldf.py --input C:\projects\Convert2DBC\ATOM_LIN_Matrix_BCM-FRL&RRL&RLS_internal_2.2.0.xls --output "out.ldf" <- engine="xlrd"
