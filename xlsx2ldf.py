@@ -79,15 +79,15 @@ class ValueDescriptionParser:
 
 
 class ExcelToLDFConverter:
-    
+
     def _get_engine(self, file_path: str) -> str:
-        if file_path.endswith('.xls'):
-            return 'xlrd'
-        elif file_path.endswith(('.xlsx', '.xlsm')):
-            return 'openpyxl'
+        if file_path.endswith(".xls"):
+            return "xlrd"
+        elif file_path.endswith((".xlsx", ".xlsm")):
+            return "openpyxl"
         else:
             raise ValueError(f"Unsupported Excel file extension: {file_path}")
-    
+
     def __init__(self, excel_path: str):
         self.excel_path = excel_path
         self.ldf = LDF()
@@ -252,7 +252,7 @@ class ExcelToLDFConverter:
         except Exception as e:
             print(f"Error creating signal {row['Signal Name']}: {str(e)}")
             return None
-    
+
     def _create_schedule_tables(self, df_schedule: pd.DataFrame):
         try:
             schedule_columns = []
@@ -267,7 +267,8 @@ class ExcelToLDFConverter:
 
             for schedule_name in schedule_columns:
                 matching_cols = [
-                    col for col in df_schedule.columns
+                    col
+                    for col in df_schedule.columns
                     if str(df_schedule[col].iloc[0]) == schedule_name
                 ]
 
@@ -277,22 +278,31 @@ class ExcelToLDFConverter:
 
                 slot_col = matching_cols[0]
                 msg_col = df_schedule.columns[df_schedule.columns.get_loc(slot_col) + 1]
-                delay_col = df_schedule.columns[df_schedule.columns.get_loc(slot_col) + 2]
+                delay_col = df_schedule.columns[
+                    df_schedule.columns.get_loc(slot_col) + 2
+                ]
 
                 entries = []
 
-                for _, row in df_schedule[[slot_col, msg_col, delay_col]].iloc[2:].iterrows():
+                for _, row in (
+                    df_schedule[[slot_col, msg_col, delay_col]].iloc[2:].iterrows()
+                ):
                     if pd.isna(row[msg_col]):
                         continue
 
                     try:
                         msg_id = int(str(row[msg_col]).strip(), 16)
-                        delay = float(row[delay_col]) if pd.notna(row[delay_col]) else 0.0
-                        
+                        delay = (
+                            float(row[delay_col]) if pd.notna(row[delay_col]) else 0.0
+                        )
+
                         frame = next(
-                            (f for f in self.ldf._unconditional_frames.values()
-                            if f.frame_id == msg_id),
-                            None
+                            (
+                                f
+                                for f in self.ldf._unconditional_frames.values()
+                                if f.frame_id == msg_id
+                            ),
+                            None,
                         )
 
                         if frame and frame != None:
@@ -312,7 +322,7 @@ class ExcelToLDFConverter:
 
         except Exception as e:
             print(f"Error creating schedule tables: {str(e)}")
-            
+
     def _create_frames(
         self, frame_id: int, frame_name: str, group: pd.DataFrame
     ) -> bool:
@@ -362,19 +372,19 @@ class ExcelToLDFConverter:
         try:
             df, df_sch = self._load_excel_data()
             grouped = df.groupby(["Msg ID", "Msg name"])
-            
+
             if df is None or df.empty:
                 print("No valid data found in Matrix sheet")
                 return False
-            
+
             for (frm_id, frm_name), group in grouped:
                 self._create_frames(frm_id, frm_name, group)
-            
+
             if not df_sch.empty:
                 self._create_schedule_tables(df_sch)
             else:
                 print("No schedule information found")
-            
+
             save_ldf(self.ldf, "out.ldf", "C:\\projects\\Convert2DBC\\ldf.jinja2")
 
             print(f"LDF-file successfully created: {output_path}")
