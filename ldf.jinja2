@@ -81,13 +81,11 @@ Signals {
     {%- endfor %}
 }
 
-{%- if ldf.diagnostic_signals %}
 Diagnostic_signals {
-{%- for signal in ldf.diagnostic_signals %}
-    {{ signal.name }}: {{ signal.size }}, {{ signal.offset }} ;
+{%- for signal in ldf.get_diagnostic_signals() %}
+    {{ signal.name }}: {{ signal.width }}, {{ signal.init_value }} ;
 {%- endfor %}
 }
-{%- endif %}
 
 Frames {
     {%- for frame in ldf.get_unconditional_frames() %}

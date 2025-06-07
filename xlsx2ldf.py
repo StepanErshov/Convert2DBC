@@ -296,13 +296,14 @@ class ExcelToLDFConverter:
                             float(row[delay_col]) if pd.notna(row[delay_col]) else 0.0
                         )
 
+                        all_frames = {
+                            **self.ldf._unconditional_frames,
+                            **self.ldf._diagnostic_frames
+                        }
+
                         frame = next(
-                            (
-                                f
-                                for f in self.ldf._unconditional_frames.values()
-                                if f.frame_id == msg_id
-                            ),
-                            None,
+                            (f for f in all_frames.values() if f.frame_id == msg_id),
+                            None
                         )
 
                         if frame and frame != None:
@@ -367,6 +368,57 @@ class ExcelToLDFConverter:
         except Exception as e:
             print(f"Error creating frame {frame_name}: {str(e)}")
             return False
+    
+    def _create_default_diagnostic_frames(self):
+        try:
+            # --- MasterReq ---
+            master_signals = {}
+            for i in range(8):
+                signal_name = f"MasterReqB{i}"
+                signal = LinSignal(
+                    name=signal_name,
+                    width=8,
+                    init_value=0
+                )
+                signal.publisher = self.master
+                master_signals[i * 8] = signal
+                self.ldf._diagnostic_signals[signal.name] = signal
+
+            master_frame = LinDiagnosticFrame(
+                name="MasterReq",
+                frame_id=0x3C,
+                length=8,
+                signals=master_signals,
+                pad_with_zero=True
+            )
+            self.ldf._diagnostic_frames[master_frame.name] = master_frame
+
+            # --- SlaveResp ---
+            slave_signals = {}
+            for i in range(8):
+                signal_name = f"SlaveRespB{i}"
+                signal = LinSignal(
+                    name=signal_name,
+                    width=8,
+                    init_value=0
+                )
+                signal.publisher = None
+                slave_signals[i * 8] = signal
+                self.ldf._diagnostic_signals[signal.name] = signal
+
+            slave_frame = LinDiagnosticFrame(
+                name="SlaveResp",
+                frame_id=0x3D,
+                length=8,
+                signals=slave_signals,
+                pad_with_zero=True
+            )
+            self.ldf._diagnostic_frames[slave_frame.name] = slave_frame
+
+            return True
+        except Exception as e:
+            print(f"Error creating default diagnostic frames: {str(e)}")
+            return False
 
     def convert(self, output_path: str = "out.ldf") -> bool:
         try:
@@ -380,6 +432,7 @@ class ExcelToLDFConverter:
             for (frm_id, frm_name), group in grouped:
                 self._create_frames(frm_id, frm_name, group)
 
+            self._create_default_diagnostic_frames()
             if not df_sch.empty:
                 self._create_schedule_tables(df_sch)
             else:
