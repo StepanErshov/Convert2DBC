@@ -136,10 +136,10 @@ class ExcelToLDFConverter:
         )
 
         for user in self.bus_users[1:]:
-            self.slave = LinSlave(name=user)
+            slave = LinSlave(name=user)
+            self.ldf._slaves[slave.name] = slave
 
         self.ldf._master = self.master
-        self.ldf._slaves[self.slave.name] = self.slave
 
         self.frame = LinFrame(frame_id=1, name="First_frame")
 
@@ -252,7 +252,19 @@ class ExcelToLDFConverter:
         except Exception as e:
             print(f"Error creating signal {row['Signal Name']}: {str(e)}")
             return None
+    def _create_node(self) -> bool:
+        try:
 
+            node_attr = LinNodeCompositionConfiguration(name="ALM_FL")
+
+
+
+            return True
+        except Exception as e:
+            print(f"Error creating node attr: {str(e)}")
+            return False
+
+        return
     def _create_schedule_tables(self, df_schedule: pd.DataFrame):
         try:
             schedule_columns = []
@@ -424,7 +436,7 @@ class ExcelToLDFConverter:
         try:
             df, df_sch = self._load_excel_data()
             grouped = df.groupby(["Msg ID", "Msg name"])
-
+            self._create_node()
             if df is None or df.empty:
                 print("No valid data found in Matrix sheet")
                 return False

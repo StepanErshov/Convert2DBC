@@ -60,7 +60,6 @@ def generate_default_output_filename(input_filename, new_version=None):
     
     return f"{base_name}_V{new_version}_{current_date}.ldf"
 
-# Основной интерфейс
 def main():
     st.markdown('<h1 class="title">📄 Excel to LDF Converter</h1>', unsafe_allow_html=True)
     st.markdown("Upload your Excel file containing LIN data to convert it to an LDF file.")
