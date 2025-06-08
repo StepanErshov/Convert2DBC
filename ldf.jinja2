@@ -32,41 +32,6 @@ Nodes {
     {%- endif %}
 }
 
-{%- if ldf.get_language_version().major == 2 or "Iso17987Version" in ldf.get_language_version().__class__.__name__ or "J2602" in ldf.get_language_version().__class__.__name__ %}
-Node_attributes {
-    {%- for slave in ldf.get_slaves() %}
-    {{slave.name}} {
-        LIN_protocol = "{{slave.lin_protocol}}";
-        configured_NAD = {{slave.configured_nad}};
-        initial_NAD = {{slave.initial_nad}};
-        {%- if slave.product_id %}
-        product_id = {{slave.product_id.supplier_id}}, {{slave.product_id.function_id -}}
-        {%- if slave.product_id.variant -%}
-        , {{slave.product_id.variant -}}
-        {%- endif %};
-        {%- endif %}
-        {%- if slave.response_error %}
-        response_error = {{slave.response_error.name}};
-        {%- endif %}
-        P2_min = {{slave.p2_min * 1000}} ms;
-        ST_min = {{slave.st_min * 1000}} ms;
-        N_As_timeout = {{slave.n_as_timeout * 1000}} ms;
-        N_Cr_timeout = {{slave.n_cr_timeout * 1000}} ms;
-        {%- if slave.configurable_frames.items() | length > 0 %}
-        configurable_frames {
-            {%- for (id, frame) in slave.configurable_frames.items() %}
-            {{frame.name}}{% if slave.lin_protocol == "2.0" %} = {{id}}{% endif -%};
-            {%- endfor %}
-        }
-        {%- endif %}
-        {%- if slave.response_tolerance %}
-        response_tolerance = {{slave.response_tolerance * 100}} %;
-        {%- endif %}
-    }
-    {%- endfor %}
-}
-{%- endif %}
-
 Signals {
     {%- for signal in ldf.get_signals() %}
     {{signal.name}}: {{signal.width}},
@@ -108,6 +73,38 @@ Diagnostic_frames {
     {%- endfor %}
 }
 {%- endif %}
+
+Node_attributes {
+    {%- for slave in ldf.get_slaves() %}
+    {{slave.name}} {
+        LIN_protocol = "{{slave.lin_protocol}}";
+        configured_NAD = {{slave.configured_nad}};
+        {%- if slave.product_id %}
+        product_id = 0x{{slave.product_id.supplier_id}}, 0x{{slave.product_id.function_id -}}, {{slave.product_id.variant}}
+        {%- if slave.product_id.variant -%}
+        , {{slave.product_id.variant -}}
+        {%- endif %};
+        {%- endif %}
+        {%- if slave.response_error %}
+        response_error = {{slave.response_error.name}};
+        {%- endif %}
+        P2_min = {{slave.p2_min * 1000}} ms;
+        ST_min = {{slave.st_min * 1000}} ms;
+        N_As_timeout = {{slave.n_as_timeout * 1000}} ms;
+        N_Cr_timeout = {{slave.n_cr_timeout * 1000}} ms;
+        {%- if slave.configurable_frames.items() | length > 0 %}
+        configurable_frames {
+            {%- for (id, frame) in slave.configurable_frames.items() %}
+            {{frame}};
+            {%- endfor %}
+        }
+        {%- endif %}
+        {%- if slave.response_tolerance %}
+        response_tolerance = {{slave.response_tolerance * 100}} %;
+        {%- endif %}
+    }
+    {%- endfor %}
+}
 
 {%- if ldf.get_event_triggered_frames() | length > 0 %}
 Event_triggered_frames {

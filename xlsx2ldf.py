@@ -138,31 +138,42 @@ class ExcelToLDFConverter:
             response_tolerance=None,
         )
 
-        for user in self.bus_users[1:]:
-            #need add all slave attributes
+        for i, user in enumerate(self.bus_users[1:]):
             slave = LinSlave(name=user)
             slave.lin_protocol = self.df_info.iloc[6, 2]
-            slave.configured_nad = self.df_info.iloc[6, 1]
+            slave.configured_nad = self.df_info.iloc[i + 6, 1]
             slave.product_id = LinProductId(0x0, 0x0, 0)
+            slave.p2_min = 0.05
+            slave.st_min = 0.0
+            slave.n_as_timeout = 1.0
+            slave.n_cr_timeout = 1.0
             
+            response_signal_row = df[
+                (df[slave.name] == "S") & (df['Response Error'] == 'Yes')
+                ]
             
-            response_signal_row = df[(df['Response Error'] == 'Yes')]
-            # print(response_signal_row)
-            if not response_signal_row.empty:   
-                signal_name = response_signal_row.iloc[0]['Signal Name\n信号名称']
+            config_frames_df = df[
+                ((df[slave.name] == "S") | (df[slave.name] == "R")) & 
+                (df["Msg Name\n报文名称"].notna())]
+            
+            configurable_frames = {}
+            for _, row in config_frames_df.iterrows():
+                frame_name = str(row["Msg Name\n报文名称"]).strip()
+                frame_id = str(row["Msg ID(hex)\n报文标识符"]).strip()
+                configurable_frames[frame_id] = frame_name
+            
+            slave.configurable_frames = configurable_frames
+            if not response_signal_row.empty:
+                signal_name = LinSignal(
+                    name=response_signal_row.iloc[0]['Signal Name\n信号名称'],
+                    width=response_signal_row.iloc[0]['Bit Length(Bit)\n信号长度'],
+                    init_value=int(response_signal_row.iloc[0]['Initial Value(Hex)\n初始值'], 16))
                 slave.response_error = signal_name
-                if signal_name in self.ldf._signals:
-                    slave.response_error = self.ldf._signals[signal_name]
-            
-            print(slave.name, slave.response_error)
-            
-            slave.configurable_frames
-            
+
             self.ldf._slaves[slave.name] = slave
-            
 
         self.ldf._master = self.master
-
+        
     def _load_excel_data(self) -> pd.DataFrame:
         df = pd.read_excel(
             self.excel_path,
@@ -248,25 +259,11 @@ class ExcelToLDFConverter:
                     row["Sig Val Description"]
                 )
 
-            # slaves = []
-            # if pd.notna(row["Receivers"]):
-            #     if isinstance(row["Receivers"], str):
-            #         slaves = [row["Receivers"].split(",")]
-            #         self.slave.append(slaves)
-            #     else:
-            #         slaves = [str[row["Receivers"]]]
-            #         self.slave.append(slaves)
-
             signal = LinSignal(
                 name=str(row["Signal Name"]),
                 width=int(row["Bit Length"]),
                 init_value=int(row["Init value"], 16),
             )
-
-            if row["Response Error"] == "YES":
-                signal.is_response_error = True
-            else:
-                signal.is_response_error = False
 
             signal.publisher = LinNode(row["Senders"])
             signal.subscribers = [LinNode(row["Receivers"])]
@@ -463,7 +460,7 @@ class ExcelToLDFConverter:
         try:
             df, df_sch = self._load_excel_data()
             grouped = df.groupby(["Msg ID", "Msg name"])
-            self._create_node()
+            
             if df is None or df.empty:
                 print("No valid data found in Matrix sheet")
                 return False
@@ -472,11 +469,14 @@ class ExcelToLDFConverter:
                 self._create_frames(frm_id, frm_name, group)
 
             self._create_default_diagnostic_frames()
+            
             if not df_sch.empty:
                 self._create_schedule_tables(df_sch)
             else:
                 print("No schedule information found")
-
+            
+            self._create_node()
+            
             save_ldf(self.ldf, "out.ldf", "C:\\projects\\Convert2DBC\\ldf.jinja2")
 
             print(f"LDF-file successfully created: {output_path}")
