@@ -15,6 +15,7 @@ from ldfparser import (
     LinSignalEncodingType,
     LinDiagnosticRequest,
     LinDiagnosticResponse,
+    LinProductId,
     save_ldf,
 )
 import pandas as pd
@@ -101,7 +102,9 @@ class ExcelToLDFConverter:
         )
 
         self.df_info = pd.read_excel(
-            self.excel_path, sheet_name="Info", keep_default_na=True, engine=self.engine
+            self.excel_path, sheet_name="Info", 
+            keep_default_na=True, 
+            engine=self.engine
         )
 
         self.df_schedule = pd.read_excel(
@@ -136,12 +139,29 @@ class ExcelToLDFConverter:
         )
 
         for user in self.bus_users[1:]:
+            #need add all slave attributes
             slave = LinSlave(name=user)
+            slave.lin_protocol = self.df_info.iloc[6, 2]
+            slave.configured_nad = self.df_info.iloc[6, 1]
+            slave.product_id = LinProductId(0x0, 0x0, 0)
+            
+            
+            response_signal_row = df[(df['Response Error'] == 'Yes')]
+            # print(response_signal_row)
+            if not response_signal_row.empty:   
+                signal_name = response_signal_row.iloc[0]['Signal Name\n信号名称']
+                slave.response_error = signal_name
+                if signal_name in self.ldf._signals:
+                    slave.response_error = self.ldf._signals[signal_name]
+            
+            print(slave.name, slave.response_error)
+            
+            slave.configurable_frames
+            
             self.ldf._slaves[slave.name] = slave
+            
 
         self.ldf._master = self.master
-
-        self.frame = LinFrame(frame_id=1, name="First_frame")
 
     def _load_excel_data(self) -> pd.DataFrame:
         df = pd.read_excel(
@@ -208,7 +228,6 @@ class ExcelToLDFConverter:
         df_schedule = df_schedule.iloc[1:].reset_index(drop=True)
 
         new_df = new_df.dropna(subset=["Signal Name"])
-        self.ldf.frame = self.frame
 
         return new_df, df_schedule
 
@@ -222,7 +241,7 @@ class ExcelToLDFConverter:
             comment = str.replace(comment, "\n", "")
             unit = str(row["Unit"]) if pd.notna(row["Unit"]) else ""
             unit = str.replace(unit, "nan", "")
-
+            self.ldf._comments = comment
             value_description = None
             if pd.notna(row["Sig Val Description"]):
                 value_description = ValueDescriptionParser.parse(
@@ -244,6 +263,11 @@ class ExcelToLDFConverter:
                 init_value=int(row["Init value"], 16),
             )
 
+            if row["Response Error"] == "YES":
+                signal.is_response_error = True
+            else:
+                signal.is_response_error = False
+
             signal.publisher = LinNode(row["Senders"])
             signal.subscribers = [LinNode(row["Receivers"])]
 
@@ -252,19 +276,22 @@ class ExcelToLDFConverter:
         except Exception as e:
             print(f"Error creating signal {row['Signal Name']}: {str(e)}")
             return None
+    
     def _create_node(self) -> bool:
         try:
-
-            node_attr = LinNodeCompositionConfiguration(name="ALM_FL")
-
-
+            lst_slv = [slave for slave in self.ldf.get_slaves()]
+            for slv in self.ldf.get_slaves():
+                node_compos = LinNodeComposition(name=slv.name)
+                node_attr = LinNodeCompositionConfiguration(name=slv.name)
+            
+            node_compos.nodes = lst_slv 
+            node_attr.compositions = [node_compos]
 
             return True
         except Exception as e:
             print(f"Error creating node attr: {str(e)}")
             return False
-
-        return
+        
     def _create_schedule_tables(self, df_schedule: pd.DataFrame):
         try:
             schedule_columns = []
