@@ -61,7 +61,7 @@ def main():
         if uploaded_file is not None:
             try:
                 # Read the Excel file to preview its content.
-                df = pd.read_excel(uploaded_file, sheet_name="matrix")
+                df = pd.read_excel(uploaded_file, sheet_name="Matrix")
                 st.subheader("Data Preview")
                 st.dataframe(df.head().style.set_properties(**{
                     'background-color': '#f0f2f6',
