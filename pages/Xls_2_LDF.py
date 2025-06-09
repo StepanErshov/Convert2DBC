@@ -4,7 +4,6 @@ from xlsx2ldf import ExcelToLDFConverter
 import os
 from datetime import datetime
 import re
-import tempfile
 
 st.set_page_config(
     page_title="Excel to LDF Converter",
@@ -112,12 +111,10 @@ def main():
             st.code(custom_filename)
 
             if st.button("Convert to LDF", key="convert_button"):
+                print(uploaded_file)
                 with st.spinner('Converting to LDF... Please wait'):
                     try:
-                        with tempfile.NamedTemporaryFile(delete=False, suffix='.xls') as tmp:
-                            tmp.write(uploaded_file.getvalue())
-                            tmp_path = tmp.name
-                        converter = ExcelToLDFConverter(tmp_path)
+                        converter = ExcelToLDFConverter(uploaded_file.name)
                         if converter.convert(custom_filename):
                             st.success("Conversion completed successfully!")
 
@@ -130,7 +127,6 @@ def main():
                                     mime="application/octet-stream",
                                     key="download_button"
                                 )
-                            os.unlink(tmp_path)
                         else:
                             st.error("Conversion failed. Please check the input data.")
                     except Exception as e:
