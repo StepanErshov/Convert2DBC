@@ -4,8 +4,6 @@ from xlsx2ldf import ExcelToLDFConverter
 import os
 from datetime import datetime
 import re
-import tempfile
-import shutil
 
 st.set_page_config(
     page_title="Excel to LDF Converter",
@@ -62,20 +60,6 @@ def generate_default_output_filename(input_filename, new_version=None):
     
     return f"{base_name}_V{new_version}_{current_date}.ldf"
 
-def save_uploaded_file(uploaded_file):
-    try:
-        # Создаем временную директорию, если ее нет
-        temp_dir = tempfile.mkdtemp()
-        file_path = os.path.join(temp_dir, uploaded_file.name)
-        
-        with open(file_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
-        
-        return file_path
-    except Exception as e:
-        st.error(f"Error saving temporary file: {str(e)}")
-        return None
-
 def main():
     st.markdown('<h1 class="title">📄 Excel to LDF Converter</h1>', unsafe_allow_html=True)
     st.markdown("Upload your Excel file containing LIN data to convert it to an LDF file.")
@@ -87,7 +71,6 @@ def main():
 
         if uploaded_file is not None:
             try:
-                # Для предпросмотра читаем файл напрямую из памяти
                 df = pd.read_excel(uploaded_file, sheet_name="Matrix")
                 st.subheader("Data Preview")
                 st.dataframe(df.head().style.set_properties(**{
@@ -130,24 +113,11 @@ def main():
             if st.button("Convert to LDF", key="convert_button"):
                 with st.spinner('Converting to LDF... Please wait'):
                     try:
-                        # Сохраняем загруженный файл во временную директорию
-                        temp_file_path = save_uploaded_file(uploaded_file)
-                        if not temp_file_path:
-                            st.error("Failed to save uploaded file")
-                            return
-
-                        # Создаем временный файл для результата
-                        output_dir = tempfile.mkdtemp()
-                        output_path = os.path.join(output_dir, custom_filename)
-
-                        # Конвертируем
-                        converter = ExcelToLDFConverter(temp_file_path)
-                        
-                        if converter.convert(output_path):
+                        converter = ExcelToLDFConverter(uploaded_file)
+                        if converter.convert(custom_filename):
                             st.success("Conversion completed successfully!")
-                            
-                            # Читаем результат и предлагаем скачать
-                            with open(output_path, "rb") as f:
+
+                            with open(custom_filename, "rb") as f:
                                 bytes_data = f.read()
                                 st.download_button(
                                     label="Download LDF File",
@@ -158,24 +128,8 @@ def main():
                                 )
                         else:
                             st.error("Conversion failed. Please check the input data.")
-                            
-                        # Очищаем временные файлы
-                        try:
-                            shutil.rmtree(os.path.dirname(temp_file_path))
-                            shutil.rmtree(output_dir)
-                        except Exception as e:
-                            print(f"Error cleaning temp files: {str(e)}")
-                            
                     except Exception as e:
                         st.error(f"An error occurred during conversion: {str(e)}")
-                        # Очищаем временные файлы в случае ошибки
-                        try:
-                            if 'temp_file_path' in locals():
-                                shutil.rmtree(os.path.dirname(temp_file_path))
-                            if 'output_dir' in locals():
-                                shutil.rmtree(output_dir)
-                        except Exception as e:
-                            print(f"Error cleaning temp files: {str(e)}")
 
 if __name__ == "__main__":
     main()
