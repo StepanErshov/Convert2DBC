@@ -75,56 +75,37 @@ class ValueDescriptionParser:
 
 
 class ExcelToLDFConverter:
-    def _get_engine(self, filename: str) -> str:
-        if filename.endswith(".xls"):
+
+    def _get_engine(self, file_path: str) -> str:
+        if file_path.endswith(".xls"):
             return "xlrd"
-        elif filename.endswith((".xlsx", ".xlsm")):
+        elif file_path.endswith((".xlsx", ".xlsm")):
             return "openpyxl"
         else:
-            raise ValueError(f"Unsupported Excel file extension: {filename}")
+            raise ValueError(f"Unsupported Excel file extension: {file_path}")
 
-    def __init__(self, file_input):  # Изменено: принимает либо путь, либо файловый объект
-        # Определяем, передан ли путь (str) или файловый объект (UploadedFile)
-        if isinstance(file_input, str):
-            # Локальный режим работы - по пути к файлу
-            self.excel_path = file_input
-            self.engine = self._get_engine(self.excel_path)
-            df = pd.read_excel(
-                self.excel_path,
-                sheet_name="Matrix",
-                keep_default_na=True,
-                engine=self.engine,
-            )
-            self.df_info = pd.read_excel(
-                self.excel_path, sheet_name="Info", keep_default_na=True, engine=self.engine
-            )
-            self.df_schedule = pd.read_excel(
-                self.excel_path,
-                sheet_name="LIN Schedule",
-                keep_default_na=True,
-                engine=self.engine,
-            )
-        else:
-            # Режим Streamlit Cloud - работаем с файловым объектом
-            self.engine = self._get_engine(file_input.name)
-            df = pd.read_excel(
-                file_input,
-                sheet_name="Matrix",
-                keep_default_na=True,
-                engine=self.engine,
-            )
-            # Нужно сбросить указатель файла перед чтением следующего листа
-            file_input.seek(0)
-            self.df_info = pd.read_excel(
-                file_input, sheet_name="Info", keep_default_na=True, engine=self.engine
-            )
-            file_input.seek(0)
-            self.df_schedule = pd.read_excel(
-                file_input,
-                sheet_name="LIN Schedule",
-                keep_default_na=True,
-                engine=self.engine,
-            )
+    def __init__(self, excel_path: str):
+        self.excel_path = excel_path
+        self.ldf = LDF()
+        self.engine = self._get_engine(self.excel_path)
+
+        df = pd.read_excel(
+            self.excel_path,
+            sheet_name="Matrix",
+            keep_default_na=True,
+            engine=self.engine,
+        )
+
+        self.df_info = pd.read_excel(
+            self.excel_path, sheet_name="Info", keep_default_na=True, engine=self.engine
+        )
+
+        self.df_schedule = pd.read_excel(
+            self.excel_path,
+            sheet_name="LIN Schedule",
+            keep_default_na=True,
+            engine=self.engine,
+        )
 
         self.bus_users = [
             col
@@ -133,7 +114,6 @@ class ExcelToLDFConverter:
             and col != "Unit\n单位"
         ]
 
-        self.ldf = LDF()
         self.ldf_version = LinVersion(
             str(self.df_info.iloc[1, 0]).strip(".")[0],
             str(self.df_info.iloc[1, 0]).strip(".")[2],

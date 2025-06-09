@@ -4,6 +4,7 @@ from xlsx2ldf import ExcelToLDFConverter
 import os
 from datetime import datetime
 import re
+import tempfile
 
 st.set_page_config(
     page_title="Excel to LDF Converter",
@@ -84,6 +85,11 @@ def main():
 
     with col2:
         if uploaded_file is not None:
+            temp_dir = tempfile.TemporaryDirectory()
+            temp_file_path = os.path.join(temp_dir.name, uploaded_file.name)
+            with open(temp_file_path, "wb") as f:
+                f.write(uploaded_file.getvalue())
+            
             st.subheader("Output Settings")
 
             version, _ = extract_version_date(uploaded_file.name)
@@ -113,10 +119,9 @@ def main():
             if st.button("Convert to LDF", key="convert_button"):
                 with st.spinner('Converting to LDF... Please wait'):
                     try:
-                        converter = ExcelToLDFConverter(uploaded_file)
+                        converter = ExcelToLDFConverter(temp_file_path)
                         if converter.convert(custom_filename):
                             st.success("Conversion completed successfully!")
-
                             with open(custom_filename, "rb") as f:
                                 bytes_data = f.read()
                                 st.download_button(
@@ -130,6 +135,7 @@ def main():
                             st.error("Conversion failed. Please check the input data.")
                     except Exception as e:
                         st.error(f"An error occurred during conversion: {str(e)}")
+        temp_dir.cleanup()
 
 if __name__ == "__main__":
     main()
