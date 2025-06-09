@@ -4,6 +4,7 @@ from xlsx2ldf import ExcelToLDFConverter
 import os
 from datetime import datetime
 import re
+import tempfile
 
 st.set_page_config(
     page_title="Excel to LDF Converter",
@@ -60,6 +61,15 @@ def generate_default_output_filename(input_filename, new_version=None):
     
     return f"{base_name}_V{new_version}_{current_date}.ldf"
 
+def save_uploaded_file(uploaded_file):
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+            tmp_file.write(uploaded_file.getvalue())
+            return tmp_file.name
+    except Exception as e:
+        st.error(f"Error saving temporary file: {str(e)}")
+        return None
+
 def main():
     st.markdown('<h1 class="title">📄 Excel to LDF Converter</h1>', unsafe_allow_html=True)
     st.markdown("Upload your Excel file containing LIN data to convert it to an LDF file.")
@@ -113,11 +123,24 @@ def main():
             if st.button("Convert to LDF", key="convert_button"):
                 with st.spinner('Converting to LDF... Please wait'):
                     try:
-                        converter = ExcelToLDFConverter(uploaded_file)
-                        if converter.convert(custom_filename):
+                        # Сохраняем временный файл
+                        temp_file_path = save_uploaded_file(uploaded_file)
+                        if not temp_file_path:
+                            st.error("Failed to create temporary file")
+                            return
+                            
+                        # Создаем конвертер и конвертируем
+                        converter = ExcelToLDFConverter(temp_file_path)
+                        
+                        # Сохраняем результат во временный файл
+                        with tempfile.NamedTemporaryFile(delete=False, suffix='.ldf') as output_tmp:
+                            output_path = output_tmp.name
+                        
+                        if converter.convert(output_path):
                             st.success("Conversion completed successfully!")
-
-                            with open(custom_filename, "rb") as f:
+                            
+                            # Читаем результат и предлагаем скачать
+                            with open(output_path, "rb") as f:
                                 bytes_data = f.read()
                                 st.download_button(
                                     label="Download LDF File",
@@ -128,8 +151,24 @@ def main():
                                 )
                         else:
                             st.error("Conversion failed. Please check the input data.")
+                            
+                        # Удаляем временные файлы
+                        try:
+                            os.unlink(temp_file_path)
+                            os.unlink(output_path)
+                        except:
+                            pass
+                            
                     except Exception as e:
                         st.error(f"An error occurred during conversion: {str(e)}")
+                        # Удаляем временные файлы в случае ошибки
+                        try:
+                            if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
+                                os.unlink(temp_file_path)
+                            if 'output_path' in locals() and os.path.exists(output_path):
+                                os.unlink(output_path)
+                        except:
+                            pass
 
 if __name__ == "__main__":
     main()
