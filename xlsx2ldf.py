@@ -282,6 +282,8 @@ class ExcelToLDFConverter:
                 name=signal.name, converters=converters
             )
 
+            encoding_type._signals = [signal]
+
             signal.encoding_type = encoding_type
 
             signal.publisher = LinNode(row["Senders"])
