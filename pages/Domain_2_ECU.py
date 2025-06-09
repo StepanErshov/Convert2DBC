@@ -143,7 +143,7 @@ def process_history_sheet(wb, ecu_col_indexes):
 if uploaded_file:
     try:
         df_preview = pd.read_excel(uploaded_file, sheet_name="Matrix", nrows=1)
-        ecu_columns = df_preview.columns[31:]
+        ecu_columns = df_preview.columns[29:]
 
         # Create a container for checkboxes
         st.write("Выберите ECU для экспорта:")

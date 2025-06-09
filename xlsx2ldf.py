@@ -3,6 +3,7 @@ from ldfparser.schedule import ScheduleTable, ScheduleTableEntry, LinFrameEntry
 from ldfparser.lin import LinVersion
 from ldfparser.node import LinNode
 from ldfparser.frame import LinFrame, LinUnconditionalFrame, LinSporadicFrame
+from ldfparser.encoding import ValueConverter, PhysicalValue, LogicalValue
 from ldfparser import (
     LDF,
     LinMaster,
@@ -264,9 +265,36 @@ class ExcelToLDFConverter:
                 width=int(row["Bit Length"]),
                 init_value=int(row["Init value"], 16),
             )
+            
+            converters = []
 
+            if value_description:
+                for key, val in value_description.items():
+                    converters.append(LogicalValue(phy_value=key, info=val))
+
+            converters.append(
+                PhysicalValue(
+                    phy_min=int(row["Minimum"]),
+                    phy_max=int(row["Maximum"]),
+                    scale=float(row["Resolution"]),
+                    offset=float(row["Offset"]),
+                    unit=str(row["Unit"])
+                )
+            )
+
+            encoding_type = LinSignalEncodingType(
+                name=signal.name,
+                converters=converters
+            )
+
+            signal.encoding_type = encoding_type
+            
             signal.publisher = LinNode(row["Senders"])
             signal.subscribers = [LinNode(row["Receivers"])]
+
+            if signal.encoding_type:
+                self.ldf._signal_encoding_types[signal.encoding_type.name] = signal.encoding_type
+                self.ldf._signal_representations[signal] = signal.encoding_type
 
             return signal
 
