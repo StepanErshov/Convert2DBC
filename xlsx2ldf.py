@@ -27,7 +27,6 @@ import pprint
 
 
 class ValueDescriptionParser:
-
     @staticmethod
     def parse(desc_str: str) -> Optional[Dict[int, str]]:
         """Convert multi-line hex descriptions to single-line decimal format"""
@@ -37,41 +36,32 @@ class ValueDescriptionParser:
         descriptions = {}
         try:
             desc_str = " ".join(desc_str.replace("\r", "\n").split())
-            parts = re.split(r"(0x[0-9a-fA-F]+)\s*:\s*", desc_str)
-            if len(parts) > 1:
-                for i in range(1, len(parts), 2):
-                    hex_val = parts[i]
-                    text = parts[i + 1].split(";")[0].split("~")[0].strip()
-                    text = re.sub(r"[^a-zA-Z0-9_\- ]", "", text)
-                    if hex_val and text:
-                        try:
-                            dec_val = int(hex_val, 16)
-                            descriptions[dec_val] = text
-                        except ValueError:
-                            continue
-            else:
-                for item in desc_str.split(";"):
-                    item = item.strip()
-                    if ":" in item:
-                        val_part, text = item.split(":", 1)
-                        val_part = val_part.strip()
-                        text = text.strip()
-                        if val_part.startswith("0x"):
-                            try:
-                                dec_val = int(val_part, 16)
-                                descriptions[dec_val] = text
-                            except ValueError:
-                                continue
 
-            range_matches = re.finditer(
-                r"(0x[0-9a-fA-F]+)\s*~\s*(0x[0-9a-fA-F]+)\s*:\s*([^;]+)", desc_str
-            )
+            range_matches = list(re.finditer(
+                r"(0x[0-9a-fA-F]+)\s*~\s*(0x[0-9a-fA-F]+)\s*:\s*([^;]*)", desc_str
+            ))
+
             for match in range_matches:
                 start = int(match.group(1), 16)
                 end = int(match.group(2), 16)
                 text = match.group(3).strip()
-                for val in range(start, end + 1):
-                    descriptions[val] = text
+                descriptions[start] = f"{match.group(1)}~{match.group(2)}, {text}"
+
+            for match in reversed(range_matches):
+                desc_str = desc_str[:match.start()].strip() + desc_str[match.end():]
+
+            parts = re.split(r"(0x[0-9a-fA-F]+)\s*:\s*", desc_str)
+            if len(parts) > 1:
+                for i in range(1, len(parts), 2):
+                    hex_val = parts[i]
+                    text = parts[i + 1].split(";")[0].strip()
+                    if hex_val and text:
+                        try:
+                            dec_val = int(hex_val, 16)
+                            if dec_val not in descriptions:
+                                descriptions[dec_val] = re.sub(r"[^a-zA-Z0-9_\- ]", "", text)
+                        except ValueError:
+                            continue
 
             return dict(sorted(descriptions.items())) if descriptions else None
 
@@ -274,11 +264,11 @@ class ExcelToLDFConverter:
 
             converters.append(
                 PhysicalValue(
-                    phy_min=int(row["Minimum"]),
-                    phy_max=int(row["Maximum"]),
+                    phy_min=int(row["Min Hex"], 16),
+                    phy_max=int(row["Max Hex"], 16),
                     scale=float(row["Resolution"]),
                     offset=float(row["Offset"]),
-                    unit=str(row["Unit"])
+                    unit=str(row["Unit"]) if str(row["Unit"]) != "nan" else None
                 )
             )
 
