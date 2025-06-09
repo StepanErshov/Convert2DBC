@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 import re
 import tempfile
+import shutil
 
 st.set_page_config(
     page_title="Excel to LDF Converter",
@@ -63,9 +64,14 @@ def generate_default_output_filename(input_filename, new_version=None):
 
 def save_uploaded_file(uploaded_file):
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
-            tmp_file.write(uploaded_file.getvalue())
-            return tmp_file.name
+        # Создаем временную директорию, если ее нет
+        temp_dir = tempfile.mkdtemp()
+        file_path = os.path.join(temp_dir, uploaded_file.name)
+        
+        with open(file_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        
+        return file_path
     except Exception as e:
         st.error(f"Error saving temporary file: {str(e)}")
         return None
@@ -81,6 +87,7 @@ def main():
 
         if uploaded_file is not None:
             try:
+                # Для предпросмотра читаем файл напрямую из памяти
                 df = pd.read_excel(uploaded_file, sheet_name="Matrix")
                 st.subheader("Data Preview")
                 st.dataframe(df.head().style.set_properties(**{
@@ -123,18 +130,18 @@ def main():
             if st.button("Convert to LDF", key="convert_button"):
                 with st.spinner('Converting to LDF... Please wait'):
                     try:
-                        # Сохраняем временный файл
+                        # Сохраняем загруженный файл во временную директорию
                         temp_file_path = save_uploaded_file(uploaded_file)
                         if not temp_file_path:
-                            st.error("Failed to create temporary file")
+                            st.error("Failed to save uploaded file")
                             return
-                            
-                        # Создаем конвертер и конвертируем
+
+                        # Создаем временный файл для результата
+                        output_dir = tempfile.mkdtemp()
+                        output_path = os.path.join(output_dir, custom_filename)
+
+                        # Конвертируем
                         converter = ExcelToLDFConverter(temp_file_path)
-                        
-                        # Сохраняем результат во временный файл
-                        with tempfile.NamedTemporaryFile(delete=False, suffix='.ldf') as output_tmp:
-                            output_path = output_tmp.name
                         
                         if converter.convert(output_path):
                             st.success("Conversion completed successfully!")
@@ -152,23 +159,23 @@ def main():
                         else:
                             st.error("Conversion failed. Please check the input data.")
                             
-                        # Удаляем временные файлы
+                        # Очищаем временные файлы
                         try:
-                            os.unlink(temp_file_path)
-                            os.unlink(output_path)
-                        except:
-                            pass
+                            shutil.rmtree(os.path.dirname(temp_file_path))
+                            shutil.rmtree(output_dir)
+                        except Exception as e:
+                            print(f"Error cleaning temp files: {str(e)}")
                             
                     except Exception as e:
                         st.error(f"An error occurred during conversion: {str(e)}")
-                        # Удаляем временные файлы в случае ошибки
+                        # Очищаем временные файлы в случае ошибки
                         try:
-                            if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
-                                os.unlink(temp_file_path)
-                            if 'output_path' in locals() and os.path.exists(output_path):
-                                os.unlink(output_path)
-                        except:
-                            pass
+                            if 'temp_file_path' in locals():
+                                shutil.rmtree(os.path.dirname(temp_file_path))
+                            if 'output_dir' in locals():
+                                shutil.rmtree(output_dir)
+                        except Exception as e:
+                            print(f"Error cleaning temp files: {str(e)}")
 
 if __name__ == "__main__":
     main()
