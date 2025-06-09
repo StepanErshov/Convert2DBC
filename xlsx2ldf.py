@@ -496,7 +496,7 @@ class ExcelToLDFConverter:
 
             self._create_node()
 
-            save_ldf(self.ldf, "out.ldf", "C:\\projects\\Convert2DBC\\ldf.jinja2")
+            save_ldf(self.ldf, output_path, "C:\\projects\\Convert2DBC\\ldf.jinja2")
 
             print(f"LDF-file successfully created: {output_path}")
             return True
@@ -520,9 +520,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# print(ExcelToLDFConverter("C:\\projects\\Convert2DBC\\ATOM_LIN_Matrix_DCM_FL-ALM_FL_V4.0.0-20250121.xlsx")._load_excel_data())
-
-
-# python xlsx2ldf.py --input "C:\\projects\\Convert2DBC\\ATOM_LIN_Matrix_DCM_FL-ALM_FL_V4.0.0-20250121.xlsx" --output "out.ldf"
-# python xlsx2ldf.py --input "C:\projects\Convert2DBC\ATOM_LIN_Matrix_BCM-FRL&RRL&RLS_V3.2.0-20241206.xls" --output "out.ldf"
