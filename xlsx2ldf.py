@@ -84,7 +84,7 @@ class ExcelToLDFConverter:
         else:
             raise ValueError(f"Unsupported Excel file extension: {file_path}")
 
-    def __init__(self, excel_path: str):
+    def __init__(self, excel_path):
         self.excel_path = excel_path
         self.ldf = LDF()
         self.engine = self._get_engine(self.excel_path)
