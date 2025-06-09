@@ -37,9 +37,11 @@ class ValueDescriptionParser:
         try:
             desc_str = " ".join(desc_str.replace("\r", "\n").split())
 
-            range_matches = list(re.finditer(
-                r"(0x[0-9a-fA-F]+)\s*~\s*(0x[0-9a-fA-F]+)\s*:\s*([^;]*)", desc_str
-            ))
+            range_matches = list(
+                re.finditer(
+                    r"(0x[0-9a-fA-F]+)\s*~\s*(0x[0-9a-fA-F]+)\s*:\s*([^;]*)", desc_str
+                )
+            )
 
             for match in range_matches:
                 start = int(match.group(1), 16)
@@ -48,7 +50,7 @@ class ValueDescriptionParser:
                 descriptions[start] = f"{match.group(1)}~{match.group(2)}, {text}"
 
             for match in reversed(range_matches):
-                desc_str = desc_str[:match.start()].strip() + desc_str[match.end():]
+                desc_str = desc_str[: match.start()].strip() + desc_str[match.end() :]
 
             parts = re.split(r"(0x[0-9a-fA-F]+)\s*:\s*", desc_str)
             if len(parts) > 1:
@@ -59,7 +61,9 @@ class ValueDescriptionParser:
                         try:
                             dec_val = int(hex_val, 16)
                             if dec_val not in descriptions:
-                                descriptions[dec_val] = re.sub(r"[^a-zA-Z0-9_\- ]", "", text)
+                                descriptions[dec_val] = re.sub(
+                                    r"[^a-zA-Z0-9_\- ]", "", text
+                                )
                         except ValueError:
                             continue
 
@@ -93,9 +97,7 @@ class ExcelToLDFConverter:
         )
 
         self.df_info = pd.read_excel(
-            self.excel_path, sheet_name="Info", 
-            keep_default_na=True, 
-            engine=self.engine
+            self.excel_path, sheet_name="Info", keep_default_na=True, engine=self.engine
         )
 
         self.df_schedule = pd.read_excel(
@@ -138,33 +140,37 @@ class ExcelToLDFConverter:
             slave.st_min = 0.0
             slave.n_as_timeout = 1.0
             slave.n_cr_timeout = 1.0
-            
+
             response_signal_row = df[
-                (df[slave.name] == "S") & (df['Response Error'] == 'Yes')
-                ]
-            
+                (df[slave.name] == "S") & (df["Response Error"] == "Yes")
+            ]
+
             config_frames_df = df[
-                ((df[slave.name] == "S") | (df[slave.name] == "R")) & 
-                (df["Msg Name\n报文名称"].notna())]
-            
+                ((df[slave.name] == "S") | (df[slave.name] == "R"))
+                & (df["Msg Name\n报文名称"].notna())
+            ]
+
             configurable_frames = {}
             for _, row in config_frames_df.iterrows():
                 frame_name = str(row["Msg Name\n报文名称"]).strip()
                 frame_id = str(row["Msg ID(hex)\n报文标识符"]).strip()
                 configurable_frames[frame_id] = frame_name
-            
+
             slave.configurable_frames = configurable_frames
             if not response_signal_row.empty:
                 signal_name = LinSignal(
-                    name=response_signal_row.iloc[0]['Signal Name\n信号名称'],
-                    width=response_signal_row.iloc[0]['Bit Length(Bit)\n信号长度'],
-                    init_value=int(response_signal_row.iloc[0]['Initial Value(Hex)\n初始值'], 16))
+                    name=response_signal_row.iloc[0]["Signal Name\n信号名称"],
+                    width=response_signal_row.iloc[0]["Bit Length(Bit)\n信号长度"],
+                    init_value=int(
+                        response_signal_row.iloc[0]["Initial Value(Hex)\n初始值"], 16
+                    ),
+                )
                 slave.response_error = signal_name
 
             self.ldf._slaves[slave.name] = slave
 
         self.ldf._master = self.master
-        
+
     def _load_excel_data(self) -> pd.DataFrame:
         df = pd.read_excel(
             self.excel_path,
@@ -255,7 +261,7 @@ class ExcelToLDFConverter:
                 width=int(row["Bit Length"]),
                 init_value=int(row["Init value"], 16),
             )
-            
+
             converters = []
 
             if value_description:
@@ -268,22 +274,23 @@ class ExcelToLDFConverter:
                     phy_max=int(row["Max Hex"], 16),
                     scale=float(row["Resolution"]),
                     offset=float(row["Offset"]),
-                    unit=str(row["Unit"]) if str(row["Unit"]) != "nan" else None
+                    unit=str(row["Unit"]) if str(row["Unit"]) != "nan" else None,
                 )
             )
 
             encoding_type = LinSignalEncodingType(
-                name=signal.name,
-                converters=converters
+                name=signal.name, converters=converters
             )
 
             signal.encoding_type = encoding_type
-            
+
             signal.publisher = LinNode(row["Senders"])
             signal.subscribers = [LinNode(row["Receivers"])]
 
             if signal.encoding_type:
-                self.ldf._signal_encoding_types[signal.encoding_type.name] = signal.encoding_type
+                self.ldf._signal_encoding_types[signal.encoding_type.name] = (
+                    signal.encoding_type
+                )
                 self.ldf._signal_representations[signal] = signal.encoding_type
 
             return signal
@@ -291,22 +298,22 @@ class ExcelToLDFConverter:
         except Exception as e:
             print(f"Error creating signal {row['Signal Name']}: {str(e)}")
             return None
-    
+
     def _create_node(self) -> bool:
         try:
             lst_slv = [slave for slave in self.ldf.get_slaves()]
             for slv in self.ldf.get_slaves():
                 node_compos = LinNodeComposition(name=slv.name)
                 node_attr = LinNodeCompositionConfiguration(name=slv.name)
-            
-            node_compos.nodes = lst_slv 
+
+            node_compos.nodes = lst_slv
             node_attr.compositions = [node_compos]
 
             return True
         except Exception as e:
             print(f"Error creating node attr: {str(e)}")
             return False
-        
+
     def _create_schedule_tables(self, df_schedule: pd.DataFrame):
         try:
             schedule_columns = []
@@ -352,12 +359,12 @@ class ExcelToLDFConverter:
 
                         all_frames = {
                             **self.ldf._unconditional_frames,
-                            **self.ldf._diagnostic_frames
+                            **self.ldf._diagnostic_frames,
                         }
 
                         frame = next(
                             (f for f in all_frames.values() if f.frame_id == msg_id),
-                            None
+                            None,
                         )
 
                         if frame and frame != None:
@@ -422,18 +429,14 @@ class ExcelToLDFConverter:
         except Exception as e:
             print(f"Error creating frame {frame_name}: {str(e)}")
             return False
-    
+
     def _create_default_diagnostic_frames(self):
         try:
             # --- MasterReq ---
             master_signals = {}
             for i in range(8):
                 signal_name = f"MasterReqB{i}"
-                signal = LinSignal(
-                    name=signal_name,
-                    width=8,
-                    init_value=0
-                )
+                signal = LinSignal(name=signal_name, width=8, init_value=0)
                 signal.publisher = self.master
                 master_signals[i * 8] = signal
                 self.ldf._diagnostic_signals[signal.name] = signal
@@ -443,7 +446,7 @@ class ExcelToLDFConverter:
                 frame_id=0x3C,
                 length=8,
                 signals=master_signals,
-                pad_with_zero=True
+                pad_with_zero=True,
             )
             self.ldf._diagnostic_frames[master_frame.name] = master_frame
 
@@ -451,11 +454,7 @@ class ExcelToLDFConverter:
             slave_signals = {}
             for i in range(8):
                 signal_name = f"SlaveRespB{i}"
-                signal = LinSignal(
-                    name=signal_name,
-                    width=8,
-                    init_value=0
-                )
+                signal = LinSignal(name=signal_name, width=8, init_value=0)
                 signal.publisher = None
                 slave_signals[i * 8] = signal
                 self.ldf._diagnostic_signals[signal.name] = signal
@@ -465,7 +464,7 @@ class ExcelToLDFConverter:
                 frame_id=0x3D,
                 length=8,
                 signals=slave_signals,
-                pad_with_zero=True
+                pad_with_zero=True,
             )
             self.ldf._diagnostic_frames[slave_frame.name] = slave_frame
 
@@ -478,7 +477,7 @@ class ExcelToLDFConverter:
         try:
             df, df_sch = self._load_excel_data()
             grouped = df.groupby(["Msg ID", "Msg name"])
-            
+
             if df is None or df.empty:
                 print("No valid data found in Matrix sheet")
                 return False
@@ -487,14 +486,14 @@ class ExcelToLDFConverter:
                 self._create_frames(frm_id, frm_name, group)
 
             self._create_default_diagnostic_frames()
-            
+
             if not df_sch.empty:
                 self._create_schedule_tables(df_sch)
             else:
                 print("No schedule information found")
-            
+
             self._create_node()
-            
+
             save_ldf(self.ldf, "out.ldf", "C:\\projects\\Convert2DBC\\ldf.jinja2")
 
             print(f"LDF-file successfully created: {output_path}")
