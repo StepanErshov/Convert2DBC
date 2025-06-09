@@ -135,7 +135,7 @@ def main():
                             st.error("Conversion failed. Please check the input data.")
                     except Exception as e:
                         st.error(f"An error occurred during conversion: {str(e)}")
-        temp_dir.cleanup()
+            temp_dir.cleanup()
 
 if __name__ == "__main__":
     main()
