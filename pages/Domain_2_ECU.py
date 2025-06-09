@@ -17,7 +17,7 @@ st.set_page_config(
 )
  
 st.title("Domain Excel Splitter")
-st.image("excel_split_example.png", caption="Domain Excel → ECU Excel")
+st.image("https://github.com/StepanErshov/Convert2DBC/blob/main/pages/excel_split_example.png?raw=true", caption="Domain Excel → ECU Excel")
  
 uploaded_file = st.file_uploader("🏴 Загрузите Excel файл", type=["xlsx"])
  
