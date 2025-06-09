@@ -113,7 +113,7 @@ def main():
             if st.button("Convert to LDF", key="convert_button"):
                 with st.spinner('Converting to LDF... Please wait'):
                     try:
-                        converter = ExcelToLDFConverter(uploaded_file)
+                        converter = ExcelToLDFConverter(uploaded_file.name)
                         if converter.convert(custom_filename):
                             st.success("Conversion completed successfully!")
 

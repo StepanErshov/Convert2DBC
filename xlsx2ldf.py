@@ -1,6 +1,7 @@
 import ldfparser
 from ldfparser.schedule import ScheduleTable, ScheduleTableEntry, LinFrameEntry
 from ldfparser.lin import LinVersion
+from streamlit.runtime.uploaded_file_manager import UploadedFile
 from ldfparser.node import LinNode
 from ldfparser.frame import LinFrame, LinUnconditionalFrame, LinSporadicFrame
 from ldfparser.encoding import ValueConverter, PhysicalValue, LogicalValue
@@ -77,14 +78,22 @@ class ValueDescriptionParser:
 class ExcelToLDFConverter:
 
     def _get_engine(self, file_path: str) -> str:
-        if file_path.endswith(".xls"):
-            return "xlrd"
-        elif file_path.endswith((".xlsx", ".xlsm")):
-            return "openpyxl"
+        if isinstance(file_path, UploadedFile):
+            if file_path.name.endswith(".xls"):
+                return "xlrd"
+            elif file_path.name.endswith((".xlsx", ".xlsm")):
+                return "openpyxl"
+            else:
+                raise ValueError(f"Unsupported Excel file extension: {file_path.name}")
         else:
-            raise ValueError(f"Unsupported Excel file extension: {file_path}")
+            if file_path.endswith(".xls"):
+                return "xlrd"
+            elif file_path.endswith((".xlsx", ".xlsm")):
+                return "openpyxl"
+            else:
+                raise ValueError(f"Unsupported Excel file extension: {file_path}")
 
-    def __init__(self, excel_path):
+    def __init__(self, excel_path: str):
         self.excel_path = excel_path
         self.ldf = LDF()
         self.engine = self._get_engine(self.excel_path)
