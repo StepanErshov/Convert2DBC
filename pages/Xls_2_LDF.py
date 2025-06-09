@@ -1,54 +1,65 @@
 import streamlit as st
 import pandas as pd
-import tempfile
+from xlsx2ldf import ExcelToLDFConverter
 import os
-import re
 from datetime import datetime
-from xlsx2ldf import ExcelToLDFConverter  # Import your converter here
+import re
 
-# Streamlit page configuration
 st.set_page_config(
     page_title="Excel to LDF Converter",
     page_icon="🚗",
     layout="wide"
 )
 
-# Styles for the Streamlit app
 st.markdown("""
     <style>
-    .main { background-color: #f5f5f5; }
-    .stbutton>button { background-color: #4caf50; color: white; border-radius: 5px; padding: 10px 24px; }
-    .stbutton>button:hover { background-color: #45a049; }
-    .stfileuploader>div>div>div>button { background-color: #2196f3; color: white; }
-    .sttextinput>div>div>input { border-radius: 5px; }
-    .title { color: #2c3e50; }
+    .main {
+        background-color: #f5f5f5;
+    }
+    .stButton>button {
+        background-color: #4CAF50;
+        color: white;
+        border-radius: 5px;
+        padding: 10px 24px;
+    }
+    .stButton>button:hover {
+        background-color: #45a049;
+    }
+    .stFileUploader>div>div>div>button {
+        background-color: #2196F3;
+        color: white;
+    }
+    .stTextInput>div>div>input {
+        border-radius: 5px;
+    }
+    .title {
+        color: #2c3e50;
+    }
     </style>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-# This function extracts the version and date from the filename.
 def extract_version_date(filename):
-    pattern = r'_v(\d+\.\d+\.\d+)_(\d{8})\.'
+    pattern = r'_V(\d+\.\d+\.\d+)_(\d{8})\.'
     match = re.search(pattern, filename)
     if match:
         return match.group(1), match.group(2)
     return None, None
 
-# Function to generate the base name for the output file.
 def generate_base_name(input_filename):
     base_name = os.path.splitext(input_filename)[0]
-    base_name = re.sub(r'_v\d+\.\d+\.\d+_\d{8}$', '', base_name)
+    base_name = re.sub(r'_V\d+\.\d+\.\d+_\d{8}$', '', base_name)
     return base_name
 
-# Function to generate the default output filename.
 def generate_default_output_filename(input_filename, new_version=None):
     base_name = generate_base_name(input_filename)
-    current_date = datetime.now().strftime("%y%m%d")
+    current_date = datetime.now().strftime("%Y%m%d")
+    
     if new_version is None:
         version, _ = extract_version_date(input_filename)
         new_version = version if version else "1.0.0"
-    return f"{base_name}_v{new_version}_{current_date}.ldf"
+    
+    return f"{base_name}_V{new_version}_{current_date}.ldf"
 
-# Main function for the Streamlit application.
 def main():
     st.markdown('<h1 class="title">📄 Excel to LDF Converter</h1>', unsafe_allow_html=True)
     st.markdown("Upload your Excel file containing LIN data to convert it to an LDF file.")
@@ -60,7 +71,6 @@ def main():
 
         if uploaded_file is not None:
             try:
-                # Read the Excel file to preview its content.
                 df = pd.read_excel(uploaded_file, sheet_name="Matrix")
                 st.subheader("Data Preview")
                 st.dataframe(df.head().style.set_properties(**{
@@ -82,12 +92,14 @@ def main():
             new_version = st.text_input(
                 "LDF Version",
                 value=default_version,
-                help="Enter the version number in format x.x.x"
+                help="Enter the version number in format X.X.X"
             )
+
+            base_name = generate_base_name(uploaded_file.name)
 
             default_output_name = generate_default_output_filename(uploaded_file.name, new_version)
             custom_filename = st.text_input(
-                "Output LDF File Name",
+                "Output LDF file name",
                 value=default_output_name,
                 help="You can customize the output file name"
             )
@@ -95,26 +107,20 @@ def main():
             if not custom_filename.lower().endswith('.ldf'):
                 custom_filename += '.ldf'
 
-            st.markdown("**Final LDF File Name:**")
+            st.markdown("**Final LDF file name:**")
             st.code(custom_filename)
 
             if st.button("Convert to LDF", key="convert_button"):
-                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                    temp_file.write(uploaded_file.read())
-                    temp_file_path = temp_file.name
-
-                with st.spinner('Converting to LDF... please wait'):
+                with st.spinner('Converting to LDF... Please wait'):
                     try:
-                        # Initialize the converter with the temporary path
-                        converter = ExcelToLDFConverter(temp_file_path)
+                        converter = ExcelToLDFConverter(uploaded_file.name)
                         if converter.convert(custom_filename):
                             st.success("Conversion completed successfully!")
 
-                            # Provide the download link for the new LDF file
                             with open(custom_filename, "rb") as f:
                                 bytes_data = f.read()
                                 st.download_button(
-                                    label="Download LDF file",
+                                    label="Download LDF File",
                                     data=bytes_data,
                                     file_name=custom_filename,
                                     mime="application/octet-stream",
@@ -124,9 +130,6 @@ def main():
                             st.error("Conversion failed. Please check the input data.")
                     except Exception as e:
                         st.error(f"An error occurred during conversion: {str(e)}")
-
-                # Clean up the temporary file
-                os.remove(temp_file_path)
 
 if __name__ == "__main__":
     main()
