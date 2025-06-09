@@ -114,7 +114,7 @@ def main():
                 print(uploaded_file)
                 with st.spinner('Converting to LDF... Please wait'):
                     try:
-                        converter = ExcelToLDFConverter(uploaded_file.name)
+                        converter = ExcelToLDFConverter(str(uploaded_file.name))
                         if converter.convert(custom_filename):
                             st.success("Conversion completed successfully!")
 
