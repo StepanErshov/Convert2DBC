@@ -1,22 +1,17 @@
-import ldfparser
-from ldfparser.schedule import ScheduleTable, ScheduleTableEntry, LinFrameEntry
+from ldfparser.schedule import ScheduleTable, LinFrameEntry
 from ldfparser.lin import LinVersion
-from streamlit.runtime.uploaded_file_manager import UploadedFile
 from ldfparser.node import LinNode
-from ldfparser.frame import LinFrame, LinUnconditionalFrame, LinSporadicFrame
-from ldfparser.encoding import ValueConverter, PhysicalValue, LogicalValue
+from ldfparser.frame import LinUnconditionalFrame
+from ldfparser.encoding import PhysicalValue, LogicalValue
 from ldfparser import (
     LDF,
     LinMaster,
     LinSlave,
-    LinFrame,
     LinSignal,
     LinNodeComposition,
     LinNodeCompositionConfiguration,
     LinDiagnosticFrame,
     LinSignalEncodingType,
-    LinDiagnosticRequest,
-    LinDiagnosticResponse,
     LinProductId,
     save_ldf,
 )
@@ -24,6 +19,7 @@ import pandas as pd
 from typing import Optional, Dict
 import re
 import argparse
+from streamlit.runtime.uploaded_file_manager import UploadedFile
 import pprint
 
 
