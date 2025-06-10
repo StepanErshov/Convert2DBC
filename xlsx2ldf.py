@@ -501,7 +501,7 @@ class ExcelToLDFConverter:
 
             self._create_node()
 
-            save_ldf(self.ldf, output_path, "C:\\projects\\Convert2DBC\\ldf.jinja2")
+            save_ldf(self.ldf, output_path, "./ldf.jinja2")
 
             print(f"LDF-file successfully created: {output_path}")
             return True
