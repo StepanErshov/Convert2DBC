@@ -4,6 +4,38 @@ from xlsx2ldf import ExcelToLDFConverter
 import os
 from datetime import datetime
 import re
+import logging
+from logging.handlers import RotatingFileHandler
+
+def setup_logging():
+
+    log_dir = "logs"
+    os.makedirs(log_dir, exist_ok=True)
+    
+    log_format = "%(asctime)s - %(levelname)s - %(message)s"
+    date_format = "%Y-%m-%d %H:%M:%S"
+    
+    logging.basicConfig(
+        level=logging.INFO,
+        format=log_format,
+        datefmt=date_format,
+        handlers=[
+            RotatingFileHandler(
+                filename=os.path.join(log_dir, "excel_to_ldf.log"),
+                maxBytes=5*1024*1024,  # 5 MB
+                backupCount=3
+            )
+        ]
+    )
+
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    formatter = logging.Formatter(log_format, date_format)
+    console.setFormatter(formatter)
+    logging.getLogger('').addHandler(console)
+
+setup_logging()
+
 
 st.set_page_config(
     page_title="Excel to LDF Converter",
@@ -61,6 +93,9 @@ def generate_default_output_filename(input_filename, new_version=None):
     return f"{base_name}_V{new_version}_{current_date}.ldf"
 
 def main():
+    logger = logging.getLogger(__name__)
+    logger.info("Starting Excel to LDF Converter application")
+    
     st.markdown('<h1 class="title">📄 Excel to LDF Converter</h1>', unsafe_allow_html=True)
     st.markdown("Upload your Excel file containing LIN data to convert it to an LDF file.")
 
@@ -71,6 +106,7 @@ def main():
 
         if uploaded_file is not None:
             try:
+                logger.info(f"Processing file: {uploaded_file.name}")
                 df = pd.read_excel(uploaded_file, sheet_name="Matrix")
                 st.subheader("Data Preview")
                 st.dataframe(df.head().style.set_properties(**{
@@ -79,7 +115,9 @@ def main():
                     'border': '1px solid #dfe6e9'
                 }))
             except Exception as e:
-                st.error(f"Error reading the Excel file: {str(e)}")
+                error_msg = f"Error reading the Excel file: {str(e)}"
+                logger.error(error_msg, exc_info=True)
+                st.error(error_msg)
                 return
 
     with col2:
@@ -96,6 +134,7 @@ def main():
             )
 
             base_name = generate_base_name(uploaded_file.name)
+            logger.info(f"Base name: {base_name}, Version: {new_version}")
 
             default_output_name = generate_default_output_filename(uploaded_file.name, new_version)
             custom_filename = st.text_input(
@@ -113,9 +152,12 @@ def main():
             if st.button("Convert to LDF", key="convert_button"):
                 with st.spinner('Converting to LDF... Please wait'):
                     try:
+                        logger.info(f"Starting conversion to {custom_filename}")
                         converter = ExcelToLDFConverter(uploaded_file)
                         if converter.convert(custom_filename):
-                            st.success("Conversion completed successfully!")
+                            success_msg = "Conversion completed successfully!"
+                            logger.info(success_msg)
+                            st.success(success_msg)
 
                             with open(custom_filename, "rb") as f:
                                 bytes_data = f.read()
@@ -127,9 +169,15 @@ def main():
                                     key="download_button"
                                 )
                         else:
-                            st.error("Conversion failed. Please check the input data.")
+                            error_msg = "Conversion failed. Please check the input data."
+                            logger.error(error_msg)
+                            st.error(error_msg)
                     except Exception as e:
-                        st.error(f"An error occurred during conversion: {str(e)}")
+                        error_msg = f"An error occurred during conversion: {str(e)}"
+                        logger.error(error_msg, exc_info=True)
+                        st.error(error_msg)
+
+    logger.info("Application finished")
 
 if __name__ == "__main__":
     main()
