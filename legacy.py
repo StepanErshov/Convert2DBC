@@ -43,7 +43,7 @@
 # import os
 # def get_file_info(file_name: str):
 #         file_start = 'ATOM_CAN_Matrix_'
-#         file_start1 = 'ATOM_CANFD_Matrix_' 
+#         file_start1 = 'ATOM_CANFD_Matrix_'
 #         file_name_only = os.path.splitext(os.path.basename(file_name))[0]
 #         if file_name_only.startswith(file_start1):
 #             protocol = 'CANFD'
