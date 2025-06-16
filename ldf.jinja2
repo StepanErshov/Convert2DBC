@@ -34,15 +34,15 @@ Nodes {
 
 Signals {
     {%- for signal in ldf.get_signals() %}
-    {{signal.name}}: {{signal.width}},
+    {{ signal.name }}: {{ signal.width }},
     {%- if signal.is_array() %} {
     {%- for value in signal.init_value -%}
-    {{value}} {%- if not loop.last %},{% endif -%}
+    {{ value }}{%- if not loop.last %},{% endif -%}
     {%- endfor %} }
-    {%- else %} {{signal.init_value}}
+    {%- else %} {{ signal.init_value }}
     {%- endif -%}, {{ signal.publisher.name -}}
     {%- for subscriber in signal.subscribers %}, {{ subscriber.name }}
-    {%- endfor -%};   {% if signal.comment %} //{{ signal.comment }}{% endif %}
+    {%- endfor -%};{% if signal_comments.get(signal.name) %} // {{ signal_comments[signal.name] }}{% endif %}
     {%- endfor %}
 }
 

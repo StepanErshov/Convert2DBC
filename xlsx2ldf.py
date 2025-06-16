@@ -21,7 +21,19 @@ import re
 import argparse
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 import pprint
+from jinja2 import Environment, FileSystemLoader
 
+def render_ldf_template(ldf, output_path, template_path, signal_comments=None):
+    env = Environment(loader=FileSystemLoader('.'))
+    template = env.get_template(template_path)
+    
+    rendered_content = template.render(
+        ldf=ldf,
+        signal_comments=signal_comments or {}
+    )
+    
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(rendered_content)
 
 class ValueDescriptionParser:
     @staticmethod
@@ -90,6 +102,7 @@ class ExcelToLDFConverter:
                 raise ValueError(f"Unsupported Excel file extension: {file_path}")
 
     def __init__(self, excel_path: str):
+        self.signal_comments = {}
         self.excel_path = excel_path
         self.ldf = LDF()
         self.engine = self._get_engine(self.excel_path)
@@ -265,8 +278,10 @@ class ExcelToLDFConverter:
                 name=str(row["Signal Name"]),
                 width=int(row["Bit Length"]),
                 init_value=int(row["Init value"], 16),
-                comment=comment
             )
+
+            if comment:
+                self.signal_comments[signal.name] = comment
 
             converters = []
 
@@ -502,7 +517,12 @@ class ExcelToLDFConverter:
 
             self._create_node()
 
-            save_ldf(self.ldf, output_path, "./ldf.jinja2")
+            render_ldf_template(
+            self.ldf, 
+            output_path, 
+            "./ldf.jinja2", 
+            signal_comments=self.signal_comments
+        )
 
             print(f"LDF-file successfully created: {output_path}")
             return True
