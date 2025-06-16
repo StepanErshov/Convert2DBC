@@ -8,4 +8,3 @@ ldfparser==0.26.0
 python-lin==0.1.1
 canmatrix==1.2
 xlrd==2.0.1
-https://drive.google.com/drive/folders/1oEtTkgQLFJWMFrMJoSH0_gryNJamNtWu?dmr=1&ec=wgc-drive-globalnav-goto
