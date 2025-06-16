@@ -4,7 +4,7 @@ pandas==2.2.3
 openpyxl==3.1.5
 streamlit==1.45.1
 pyodc==1.5.0
-ldfparser==0.26.0
+https://github.com/StepanErshov/Convert2DBC/raw/main/ldfparser-0.1.12-py3-none-any.whl
 python-lin==0.1.1
 canmatrix==1.2
 xlrd==2.0.1
