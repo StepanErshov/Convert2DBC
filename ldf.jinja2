@@ -42,7 +42,7 @@ Signals {
     {%- else %} {{signal.init_value}}
     {%- endif -%}, {{ signal.publisher.name -}}
     {%- for subscriber in signal.subscribers %}, {{ subscriber.name }}
-    {%- endfor -%};
+    {%- endfor -%};   {% if signal.comment %} //{{ signal.comment }}{% endif %}
     {%- endfor %}
 }
 

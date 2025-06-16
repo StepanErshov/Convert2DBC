@@ -265,6 +265,7 @@ class ExcelToLDFConverter:
                 name=str(row["Signal Name"]),
                 width=int(row["Bit Length"]),
                 init_value=int(row["Init value"], 16),
+                comment=comment
             )
 
             converters = []
