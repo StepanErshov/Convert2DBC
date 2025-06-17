@@ -310,7 +310,6 @@ class ExcelToLDFConverter:
             comment = str.replace(comment, "\n", "")
             unit = str(row["Unit"]) if pd.notna(row["Unit"]) else ""
             unit = str.replace(unit, "nan", "")
-            self.ldf._comments = self.get_file_info(self.excel_path)["version"]
             value_description = None
             if pd.notna(row["Sig Val Description"]):
                 value_description = ValueDescriptionParser.parse(
@@ -539,6 +538,7 @@ class ExcelToLDFConverter:
 
     def convert(self, output_path: str = "out.ldf") -> bool:
         try:
+            self.ldf._comments = self.get_file_info(self.excel_path)["version"]
             df, df_sch = self._load_excel_data()
             grouped = df.groupby(["Msg ID", "Msg name"])
 
