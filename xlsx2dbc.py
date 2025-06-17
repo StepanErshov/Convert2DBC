@@ -809,6 +809,137 @@ class ExcelToDBCConverter:
             print(f"Error creating message {msg_name}: {str(e)}")
             return False
 
+    def _validate_excel_structure(self, df: pd.DataFrame) -> bool:
+        required_columns = [
+            "Msg ID\n报文标识符",
+            "Msg Name\n报文名称",
+            "Signal Name\n信号名称",
+            "Start Byte\n起始字节",
+            "Start Bit\n起始位",
+            "Bit Length (Bit)\n信号长度",
+            "Byte Order\n排列格式(Intel/Motorola)",
+            "Data Type\n数据类型",
+            "Msg Length (Byte)\n报文长度",
+        ]
+        
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            print(f"Ошибка: В файле отсутствуют обязательные столбцы: {missing_columns}")
+            return False
+        return True
+
+    def _validate_message_ids(self, df: pd.DataFrame) -> bool:
+        valid = True
+        for msg_id in df["Msg ID\n报文标识符"].dropna().unique():
+            try:
+                if isinstance(msg_id, str):
+                    if msg_id.startswith("0x"):
+                        int(msg_id, 16)
+                    else:
+                        int(msg_id)
+                else:
+                    int(msg_id)
+            except ValueError:
+                print(f"Ошибка: Некорректный ID сообщения: {msg_id}")
+                valid = False
+        return valid
+
+    def _validate_signal_positions(self, df: pd.DataFrame) -> bool:
+        valid = True
+        for _, group in df.groupby("Msg ID\n报文标识符"):
+            msg_length = group["Msg Length (Byte)\n报文长度"].iloc[0]
+            for _, row in group.iterrows():
+                start_byte = row["Start Byte\n起始字节"]
+                start_bit = row["Start Bit\n起始位"]
+                bit_length = row["Bit Length (Bit)\n信号长度"]
+                
+                if start_byte >= msg_length:
+                    print(f"Ошибка: Сигнал {row['Signal Name\n信号名称']} выходит за пределы сообщения (байт {start_byte} >= длины сообщения {msg_length})")
+                    valid = False
+                    
+                if start_bit >= 8:
+                    print(f"Ошибка: Некорректный стартовый бит {start_bit} в сигнале {row['Signal Name\n信号名称']}")
+                    valid = False
+                    
+                if bit_length <= 0:
+                    print(f"Ошибка: Некорректная длина {bit_length} в сигнале {row['Signal Name\n信号名称']}")
+                    valid = False
+                    
+                if start_byte * 8 + start_bit + bit_length > msg_length * 8:
+                    print(f"Ошибка: Сигнал {row['Signal Name\n信号名称']} выходит за пределы сообщения")
+                    valid = False
+        return valid
+
+    def _validate_data_types(self, df: pd.DataFrame) -> bool:
+        valid = True
+        for _, row in df.iterrows():
+            data_type = str(row["Data Type\n数据类型"])
+            bit_length = row["Bit Length (Bit)\n信号长度"]
+            
+            if "Float" in data_type and bit_length not in [32, 64]:
+                print(f"Ошибка: Некорректная длина {bit_length} для типа float в сигнале {row['Signal Name\n信号名称']}")
+                valid = False
+                
+            if "Signed" in data_type and bit_length < 2:
+                print(f"Ошибка: Некорректная длина {bit_length} для signed типа в сигнале {row['Signal Name\n信号名称']}")
+                valid = False
+        return valid
+
+    def _validate_senders_receivers(self, df: pd.DataFrame) -> bool:
+        valid = True
+        for msg_id, group in df.groupby("Msg ID\n报文标识符"):
+            senders = []
+            receivers = []
+            
+            for bus_user in self.bus_users:
+                if bus_user in group.columns:
+                    if "S" in group[bus_user].values:
+                        senders.append(bus_user)
+                    if "R" in group[bus_user].values:
+                        receivers.append(bus_user)
+            
+            if not senders:
+                print(f"Предупреждение: Сообщение {msg_id} не имеет отправителей")
+                
+            if not receivers:
+                print(f"Предупреждение: Сообщение {msg_id} не имеет получателей")
+                
+        return valid
+
+    def _validate_initial_values(self, df: pd.DataFrame) -> bool:
+        valid = True
+        for _, row in df.iterrows():
+            if pd.notna(row["Initial Value (Hex)\n初始值"]):
+                try:
+                    int(row["Initial Value (Hex)\n初始值"], 16)
+                except ValueError:
+                    print(f"Ошибка: Некорректное начальное значение {row['Initial Value (Hex)\n初始值']} для сигнала {row['Signal Name\n信号名称']}")
+                    valid = False
+        return valid
+
+    def validate_input_data(self) -> bool:
+        try:
+            df = pd.read_excel(
+                self.excel_path,
+                sheet_name="Matrix",
+                keep_default_na=True,
+                engine="openpyxl",
+            )
+            
+            checks = [
+                self._validate_excel_structure(df),
+                self._validate_message_ids(df),
+                self._validate_signal_positions(df),
+                self._validate_data_types(df),
+                self._validate_senders_receivers(df),
+                self._validate_initial_values(df),
+            ]
+            
+            return all(checks)
+        except Exception as e:
+            print(f"Ошибка при проверке входных данных: {str(e)}")
+            return False
+
     def get_file_info(file_name: str):
         file_start = "ATOM_CAN_Matrix_"
         file_start1 = "ATOM_CANFD_Matrix_"
@@ -861,6 +992,9 @@ class ExcelToDBCConverter:
     def convert(self, output_path: str = "output.dbc") -> bool:
         """Main method convert"""
         try:
+            if not self.validate_input_data():
+                print("Ошибка: Входные данные не прошли проверку")
+                return False
             df, _ = self._load_excel_data()
             grouped = df.groupby(["Message ID", "Message Name"])
 
