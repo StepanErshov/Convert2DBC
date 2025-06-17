@@ -20,7 +20,7 @@ from typing import Optional, Dict
 import re
 import argparse
 from streamlit.runtime.uploaded_file_manager import UploadedFile
-import pprint
+import os
 
 
 class ValueDescriptionParser:
@@ -243,6 +243,62 @@ class ExcelToLDFConverter:
         new_df = new_df.dropna(subset=["Signal Name"])
 
         return new_df, df_schedule
+    
+    def get_file_info(self, file_name: str):
+        file_start = "ATOM_CAN_Matrix_"
+        file_start1 = "ATOM_CANFD_Matrix_"
+        file_start2 = "ATOM_LIN_Matrix_"
+        file_name_only = os.path.splitext(os.path.basename(file_name))[0]
+        
+        if file_name_only.startswith(file_start1):
+            protocol = "CANFD"
+            remaining = file_name_only[len(file_start1):]
+        elif file_name_only.startswith(file_start2):
+            protocol = "LIN"
+            remaining = file_name_only[len(file_start2):]
+        elif file_name_only.startswith(file_start):
+            protocol = "CAN"
+            remaining = file_name_only[len(file_start):]
+        else:
+            return None
+        
+        parts = remaining.split('_')
+        
+        domain_name = parts.pop(0)
+
+        version_string = parts.pop(0)
+        if version_string.startswith("V"):
+            version = version_string[1:]
+        else:
+            version = version_string
+
+        version_parts = version.split('.')
+        if len(version_parts) != 3:
+            return None
+
+        if '-' in version_parts[2]:
+            version_num, file_date = version_parts[2].split('-')
+            version_parts[2] = version_num
+        else:
+            if parts and re.match(r'^\d{8}$', parts[0]):
+                file_date = parts.pop(0)
+            else:
+                file_date = ""
+        
+        version = '.'.join(version_parts)
+        
+        device_name = "_".join(parts) if parts else ""
+
+        if device_name.startswith("internal"):
+            device_name = device_name[8:].lstrip('_')
+        
+        return {
+            "version": version,
+            "date": file_date,
+            "device_name": device_name,
+            "domain_name": domain_name,
+            "protocol": protocol,
+        }
 
     def _create_signals(self, row: pd.Series) -> LinSignal:
         try:
@@ -254,7 +310,7 @@ class ExcelToLDFConverter:
             comment = str.replace(comment, "\n", "")
             unit = str(row["Unit"]) if pd.notna(row["Unit"]) else ""
             unit = str.replace(unit, "nan", "")
-            self.ldf._comments = comment
+            self.ldf._comments = self.get_file_info(self.excel_path)["version"]
             value_description = None
             if pd.notna(row["Sig Val Description"]):
                 value_description = ValueDescriptionParser.parse(
