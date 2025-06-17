@@ -310,7 +310,7 @@ class ExcelToLDFConverter:
             comment = str.replace(comment, "\n", "")
             unit = str(row["Unit"]) if pd.notna(row["Unit"]) else ""
             unit = str.replace(unit, "nan", "")
-            self.ldf._comments = self.get_file_info(self.excel_path.name)["version"]
+            self.ldf._comments = self.get_file_info(self.excel_path.name)["version"] # if need start in local pc, del .name and all will be work
             value_description = None
             if pd.notna(row["Sig Val Description"]):
                 value_description = ValueDescriptionParser.parse(
