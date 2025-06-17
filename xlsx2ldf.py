@@ -21,7 +21,7 @@ import re
 import argparse
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 import os
-
+import datetime
 
 class ValueDescriptionParser:
     @staticmethod
@@ -175,6 +175,7 @@ class ExcelToLDFConverter:
             self.ldf._slaves[slave.name] = slave
 
         self.ldf._master = self.master
+        self.ldf._channel = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     def _load_excel_data(self) -> pd.DataFrame:
         df = pd.read_excel(

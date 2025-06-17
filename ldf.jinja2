@@ -3,7 +3,7 @@
 
 // Description: LIN Matrix {{ ldf.get_master().name}}, {%- for slave in ldf.get_slaves() %} {{ slave.name }}{%- if not loop.last %},{% endif -%}{%- endfor -%};
 
-// Created: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+// Created: {{ldf.get_channel()}}
 
 // Author: convert2dbc-beta.streamlit.app
 
@@ -20,7 +20,6 @@ LIN_protocol_version = "{{ ldf.get_protocol_version() }}";
 LIN_language_version = "{{ ldf.get_language_version() }}";
 LIN_speed = {{ (ldf.get_baudrate() / 1000.0) | float }} kbps;
 {%- if ldf.get_channel() %}
-Channel_name = "{{ ldf.get_channel() }}";
 {%- endif %}
 
 Nodes {
