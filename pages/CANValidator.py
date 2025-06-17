@@ -4,14 +4,57 @@ from typing import List, Union, Dict
 import re
 import pprint
 import streamlit as st
+import os
 
 
-# pd.set_option('display.max_columns', None)  # Показать все колонки
-# pd.set_option('display.max_rows', None)     # Показать все строки
-# pd.set_option('display.width', None)       # Автоматическая ширина (без переноса)
-# pd.set_option('display.max_colwidth', None)  # Полный текст в ячейках
-# pd.set_option('display.expand_frame_repr', False)  # Не переносить колонки на новые строки
+def get_file_info(file_name: str):
+        file_start = "ATOM_CAN_Matrix_"
+        file_start1 = "ATOM_CANFD_Matrix_"
+        file_name_only = os.path.splitext(os.path.basename(file_name))[0]
+        if file_name_only.startswith(file_start1):
+            protocol = "CANFD"
+            start_index = 0
+            parts = file_name_only[len(file_start1) :].split("_")
+        elif file_name_only.startswith(file_start):
+            protocol = "CAN"
+            start_index = 0
+            parts = file_name_only[len(file_start) :].split("_")
+        else:
+            protocol = ""
+        if not (
+            file_name_only.startswith(file_start)
+            or file_name_only.startswith(file_start1)
+        ):
+            return None
+        start_index = file_name_only.find(file_start1)
+        if start_index != -1:
+            parts = file_name_only[start_index + len(file_start1) :].split("_")
+        else:
+            parts = file_name_only[len(file_start) :].split("_")
+        domain_name = parts.pop(0)
+        version_string = parts.pop(0)
+        if version_string.startswith("V"):
+            version = version_string[1:]
+            versions = version.split(".")
+            if len(versions) != 3:
+                return None
+        else:
+            version = ""
+        file_date = parts.pop(0)
+        if len(parts) > 0:
+            if parts[0] == "internal":
+                parts.pop(0)
+            device_name = "_".join(parts)
+        else:
+            device_name = ""
 
+        return {
+            "version": version,
+            "date": file_date,
+            "device_name": device_name,
+            "domain_name": domain_name,
+            "protocol": protocol,
+        }
 
 def load_xlsx(file_path: str) -> Union[pd.DataFrame, Dict]:
     try:
@@ -66,13 +109,11 @@ def create_correct_df(df: pd.DataFrame) -> pd.DataFrame:
             ",".join(row_receivers) if row_receivers else "Vector__XXX"
         )
 
-    new_df = pd.DataFrame({
+    new_df_data = {
         "Msg ID": df["Msg ID\n报文标识符"].ffill(),
         "Msg Name": df["Msg Name\n报文名称"].ffill(),
         "Cycle Type": df["Msg Cycle Time (ms)\n报文周期时间"].ffill(),
-        "Msg Time Fast": df[
-                    "Msg Cycle Time Fast(ms)\n报文发送的快速周期"
-                ].ffill(),
+        "Msg Time Fast": df["Msg Cycle Time Fast(ms)\n报文发送的快速周期"].ffill(),
         "Msg Reption": df["Msg Nr. Of Reption\n报文快速发送的次数"].ffill(),
         "Msg Delay": df["Msg Delay Time(ms)\n报文延时时间"].ffill(),
         "Msg Type": df["Msg Type\n报文类型"].ffill(),
@@ -97,7 +138,19 @@ def create_correct_df(df: pd.DataFrame) -> pd.DataFrame:
         "Senders": senders,
         "Signal Send Type": df["Signal Send Type\n信号发送类型"],
         "Inactive value": df["Inactive Value (Hex)\n非使能值"],
-    })
+    }
+
+    if "BRS\n传输速率切换标识位" in df.columns:
+        new_df_data["BRS"] = df["BRS\n传输速率切换标识位"].ffill()
+    else:
+        new_df_data["BRS"] = None
+    
+    if "Frame Format\n帧格式" in df.columns:
+        new_df_data["Frame Format"] = df["Frame Format\n帧格式"].ffill()
+    else:
+        new_df_data["Frame Format"] = None
+
+    new_df = pd.DataFrame(new_df_data)
 
     new_df["Unit"] = new_df["Unit"].astype(str)
     new_df["Unit"] = new_df["Unit"].str.replace("Ω", "Ohm", regex=False)
@@ -165,15 +218,17 @@ def validate_messages_type(data_frame: pd.DataFrame) -> bool:
     if invalid_type:
          with st.expander("Incorrect type (Unknown type)", expanded=True):
             st.error(f"Found {len(invalid_type.keys())} incorrect type:")
-            st.dataframe(pd.DataFrame({"Mes Name": invalid_type.keys(),
-                                       "Incorrect types": invalid_type.values()}))
+            st.dataframe(pd.DataFrame({
+                "Mes Name": invalid_type.keys(),
+                "Incorrect types": invalid_type.values()}))
             st.info("list of allowed values ​​'Normal', 'Diag', 'NM'")
 
     if invalid_name:
         with st.expander("Incorrect name (Not for this type))", expanded=True):
             st.error(f"Found {len(invalid_name.keys())} incorrect type:")
-            st.dataframe(pd.DataFrame({"Incorrect Name": invalid_name.keys(),
-                                       "Msg Type": invalid_name.values()}))
+            st.dataframe(pd.DataFrame({
+                "Incorrect Name": invalid_name.keys(),
+                "Msg Type": invalid_name.values()}))
             st.info("NM, if Msg Name first 3 characters = 'NM_' and Diag, if Msg Name firsts 4 characters = 'Diag'")
 
     return False
@@ -204,15 +259,17 @@ def validate_messages_id(data_frame: pd.DataFrame) -> bool:
     if invalid_id:
         with st.expander("Incorrect ID (Whether it fits within the range or not))", expanded=True):
             st.error(f"Found {len(invalid_id.keys())} incorrect IDs:")
-            st.dataframe(pd.DataFrame({"Msg Name": invalid_id.keys(),
-                                       "Incorrect IDs": invalid_id.values()}))
+            st.dataframe(pd.DataFrame({
+                "Msg Name": invalid_id.keys(),
+                "Incorrect IDs": invalid_id.values()}))
             st.info("Msg ID - Must be in the range 0x001 to 0x7FF (Hex)")
     
     if invalid_type:
         with st.expander("Incorrect ID for Msg Type (Wrong range)", expanded=True):
             st.error(f"Found {len(invalid_type.keys())} incorrect types:")
-            st.dataframe(pd.DataFrame({"Msg Name": invalid_type.keys(),
-                                       "Incorrect IDs": invalid_type.values(),}))
+            st.dataframe(pd.DataFrame({
+                "Msg Name": invalid_type.keys(),
+                "Incorrect IDs": invalid_type.values(),}))
             st.info("Diag if Message ID is in the range 0x700 to 7FF and NM if Message ID is in the range 0x500 to 5FF")
 
     return False
@@ -221,13 +278,116 @@ def validate_messages_send_type(data_frame: pd.DataFrame) -> bool:
     
     msg_send_type = dict(zip(data_frame["Msg Name"], data_frame["Send Type"]))
 
+    invalid_send_type = {}
+
     for mes, send_type in msg_send_type.items():
-        if 
+        if send_type not in ['Cycle', 'Event', 'CE']:
+            invalid_send_type[mes] = send_type
+        
+    if not invalid_send_type:
+        st.success("All messages send types are correct!")
+        return True
+    
+    if invalid_send_type:
+        with st.expander("Incorrect send types()", expanded=True):
+            st.error(f"Found {len(invalid_send_type.keys())} incorrect send types:")
+            st.dataframe(pd.DataFrame({
+                "Msg Name": invalid_send_type.keys(),
+                "Incorrect type": invalid_send_type.values()
+            }))
+            st.info("Send Type should be 'Cycle', 'Event' or 'CE'")
+    
+    return False
+
+def validate_messages_frame_fromat(file_path: Union[UploadedFile, str, List], data_frame: pd.DataFrame) -> bool:
+    file_info = get_file_info(file_path)
+    
+    if file_info["protocol"] != "CANFD":
+        st.warning(f"Frame Format validation is not applicable for {file_info['protocol']} protocol")
+        return True
+    
+    if "Frame Format" not in data_frame.columns:
+        st.error("Frame Format column not found in the dataframe")
+        return False
+    msg_frame_format = dict(zip(data_frame["Msg Name"], data_frame["Frame Format"]))
+
+    invalid_ff = {}
+
+    for mes, ff in msg_frame_format.items():
+        if ff not in [ 'StandardCAN_FD', 'StandardCAN']:
+            invalid_ff[mes] = ff
+    
+    if not invalid_ff:
+        st.success("All messages frame formats are correct!")
+        return True
+    
+    if invalid_ff:
+        st.error(f"Found {len(invalid_ff.keys())} incorrect frame formats:")
+        st.dataframe(pd.DataFrame({
+            "Msg Name":  invalid_ff.keys(),
+            "Incorrect frame format": invalid_ff.values()
+        }))
+        st.info("Frame format should be 'StandardCAN_FD' or 'StandardCAN'")
+
+    return False
+
+def validate_messages_BRS(file_path: Union[UploadedFile, str, List], data_frame: pd.DataFrame) -> bool:
+    file_info = get_file_info(file_path)
+    
+    if file_info["protocol"] != "CANFD":
+        st.warning(f"BRS validation is not applicable for {file_info['protocol']} protocol")
+        return True
+    
+    if "BRS" not in data_frame.columns:
+        st.error("BRS column not found in the dataframe")
+        return False
+
+    msg_brs = dict(zip(data_frame["Msg Name"], data_frame["BRS"]))
+    msg_frame_format = dict(zip(data_frame["Msg Name"], data_frame["Frame Format"]))
+
+    invalid_brs = {}
+    invalid_brs_protocol = {}
+
+    for mes, brs in msg_brs.items():
+        if brs not in [0, 1]:
+            invalid_brs[mes] = brs
+
+        if brs == 0 and msg_frame_format[mes] != "StandardCAN":
+            invalid_brs_protocol[mes] = {"BRS": brs, "Frame Format": msg_frame_format[mes]}
+        
+        if brs == 1 and msg_frame_format[mes] != "StandardCAN_FD":
+            invalid_brs_protocol[mes] = {"BRS": brs, "Frame Format": msg_frame_format[mes]}
+
+    if not invalid_brs and not invalid_brs_protocol:
+        st.success("All BRS values are correct!")
+        return True
+    
+    if invalid_brs:
+        with st.expander("Incorrect BRS values", expanded=True):
+            st.error(f"Found {len(invalid_brs)} incorrect BRS values:")
+            st.dataframe(pd.DataFrame({
+                "Msg Name": invalid_brs.keys(),
+                "Incorrect BRS": invalid_brs.values()
+            }))
+            st.info("BRS should be '1' or '0'")
+    
+    if invalid_brs_protocol:
+        with st.expander("Incorrect BRS for Frame Format", expanded=True):
+            st.error(f"Found {len(invalid_brs_protocol)} incorrect BRS for Frame Format")
+            df_data = []
+            for msg_name, values in invalid_brs_protocol.items():
+                df_data.append({
+                    "Msg Name": msg_name,
+                    "Incorrect BRS": values["BRS"],
+                    "Frame Format": values["Frame Format"]
+                })
+            st.dataframe(pd.DataFrame(df_data))
+            st.info("BRS=0 should be with StandardCAN, BRS=1 should be with StandardCAN_FD")
     
     return False
 
 def main():
-    st.title("CAN Messages Validator")
+    st.title("CAN Messages Validator (⚠️Under development⚠️)")
     
     uploaded_file = st.file_uploader("Upload matrix file", type=["xlsx"])
     
@@ -238,7 +398,7 @@ def main():
             
             st.success("File loaded successfully!")
             
-            tab1, tab2, tab3 = st.tabs(["Message Names", "Message Types", "Messages IDs"])
+            tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Message Names", "Message Types", "Messages IDs", "Messages Send Type", "Messages Frame Format", "Messages BRS"])
             
             with tab1:
                 if st.button("Check Message Names", key="name_check"):
@@ -252,6 +412,18 @@ def main():
                 if st.button("Check Message ID", key="id_check"):
                     validate_messages_id(processed_df)
 
+            with tab4:
+                if st.button("Check Messages Send Type", key="send_type_check"):
+                    validate_messages_send_type(processed_df)
+
+            with tab5:
+                if st.button("Check Messages Frame Format", key="frame_format_check"):
+                    validate_messages_frame_fromat(uploaded_file.name, processed_df)
+
+            with tab6:
+                if st.button("Check Messages BRS", key="brs_check"):
+                    validate_messages_BRS(uploaded_file.name, processed_df)
+
         except Exception as e:
             st.error(f"Error processing file: {str(e)}")
     else:
@@ -259,9 +431,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# pprint.pprint(load_xlsx("C:\\projects\\Convert2DBC\\ATOM_CANFD_Matrix_SGW-CGW_V5.0.0_20250123.xlsx"))
-# pprint.pprint(load_xlsx(["C:\\projects\\Convert2DBC\\ATOM_CANFD_Matrix_SGW-CGW_V5.0.0_20250123.xlsx", "C:\\projects\\Convert2DBC\\ATOM_CAN_Matrix_BD_V1.5.4_0912.xlsx"]))
-# x = create_correct_df(load_xlsx("C:\\projects\\Convert2DBC\\ATOM_CANFD_Matrix_SGW-CGW_V5.0.0_20250123.xlsx"))
-
-# pprint.pprint(validate_messages_type(x))
