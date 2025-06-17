@@ -8,3 +8,4 @@ https://github.com/StepanErshov/Convert2DBC/raw/main/ldfparser-0.1.12-py3-none-a
 python-lin==0.1.1
 canmatrix==1.2
 xlrd==2.0.1
+datetime==5.5
