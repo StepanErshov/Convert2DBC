@@ -210,6 +210,432 @@ def create_correct_df(df: pd.DataFrame) -> pd.DataFrame:
 
     return new_df
 
+def export_validation_errors_to_excel(data_frame: pd.DataFrame, file_path: str) -> None:
+    error_sheets = {}
+    print(data_frame)
+    
+    # 1. Message Name errors
+    invalid_names = []
+    too_long_names = []
+    msg_names = set(data_frame["Msg Name"].dropna().astype(str))
+    for name in msg_names:
+        if not re.fullmatch(r"^[A-Za-z0-9_\-]+$", name.strip()):
+            invalid_names.append(name)
+        if len(name) > 64:
+            too_long_names.append(name)
+    
+    if invalid_names:
+        error_sheets["Invalid_Message_Names"] = pd.DataFrame({"Incorrect name": invalid_names})
+    if too_long_names:
+        error_sheets["Long_Message_Names"] = pd.DataFrame(
+            {"Name": too_long_names, "Length": [len(n) for n in too_long_names]}
+        )
+    
+    # 2. Message Type errors
+    msg_type = dict(zip(data_frame["Msg Name"], data_frame["Msg Type"]))
+    invalid_type = {}
+    invalid_name = {}
+    for key, val in msg_type.items():
+        if val not in ["Normal", "Diag", "NM"]:
+            invalid_type[key] = val
+        if key.startswith("Diag") and val != "Diag":
+            invalid_name[key] = val
+        if key.startswith("NM_") and val != "NM":
+            invalid_name[key] = val
+    
+    if invalid_type:
+        error_sheets["Invalid_Message_Types"] = pd.DataFrame(
+            {"Message Name": invalid_type.keys(), "Incorrect Type": invalid_type.values()}
+        )
+    if invalid_name:
+        error_sheets["Message_Name_Type_Mismatch"] = pd.DataFrame(
+            {"Message Name": invalid_name.keys(), "Current Type": invalid_name.values()}
+        )
+    
+    # 3. Message ID errors
+    data_frame["Msg ID"] = data_frame["Msg ID"].apply(
+        lambda x: int(x, 16) if isinstance(x, str) and x.startswith("0x") else int(x)
+    )
+    msg_id = dict(zip(data_frame["Msg Name"], data_frame["Msg ID"]))
+    msg_type = dict(zip(data_frame["Msg Name"], data_frame["Msg Type"]))
+    invalid_id = {}
+    invalid_type = {}
+    for mes, id in msg_id.items():
+        if not (0x001 <= id <= 0x7FF):
+            invalid_id[mes] = id
+        if 0x700 <= id <= 0x7FF and msg_type[mes] != "Diag":
+            invalid_type[mes] = id
+        if 0x500 <= id <= 0x5FF and msg_type[mes] != "NM":
+            invalid_type[mes] = id
+    
+    if invalid_id:
+        error_sheets["Invalid_Message_IDs"] = pd.DataFrame(
+            {"Message Name": invalid_id.keys(), "Invalid ID": invalid_id.values()}
+        )
+    if invalid_type:
+        error_sheets["Message_ID_Type_Mismatch"] = pd.DataFrame(
+            {"Message Name": invalid_type.keys(), "Invalid ID": invalid_type.values()}
+        )
+    
+    # 4. Message Send Type errors
+    msg_send_type = dict(zip(data_frame["Msg Name"], data_frame["Send Type"]))
+    invalid_send_type = {}
+    for mes, send_type in msg_send_type.items():
+        if send_type not in ["Cycle", "Event", "CE"]:
+            invalid_send_type[mes] = send_type
+    
+    if invalid_send_type:
+        error_sheets["Invalid_Send_Types"] = pd.DataFrame(
+            {"Message Name": invalid_send_type.keys(), "Invalid Send Type": invalid_send_type.values()}
+        )
+    
+    # 5. Frame Format errors (only for CANFD)
+    if "Frame Format" in data_frame.columns:
+        msg_frame_format = dict(zip(data_frame["Msg Name"], data_frame["Frame Format"]))
+        invalid_ff = {}
+        for mes, ff in msg_frame_format.items():
+            if ff not in ["StandardCAN_FD", "StandardCAN"]:
+                invalid_ff[mes] = ff
+        
+        if invalid_ff:
+            error_sheets["Invalid_Frame_Formats"] = pd.DataFrame(
+                {"Message Name": invalid_ff.keys(), "Invalid Frame Format": invalid_ff.values()}
+            )
+    
+    # 6. BRS errors (only for CANFD)
+    if "BRS" in data_frame.columns:
+        msg_brs = dict(zip(data_frame["Msg Name"], data_frame["BRS"]))
+        msg_frame_format = dict(zip(data_frame["Msg Name"], data_frame["Frame Format"]))
+        invalid_brs = {}
+        invalid_brs_protocol = {}
+        for mes, brs in msg_brs.items():
+            if brs not in [0, 1]:
+                invalid_brs[mes] = brs
+            if brs == 0 and msg_frame_format[mes] != "StandardCAN":
+                invalid_brs_protocol[mes] = {
+                    "BRS": brs,
+                    "Frame Format": msg_frame_format[mes],
+                }
+            if brs == 1 and msg_frame_format[mes] != "StandardCAN_FD":
+                invalid_brs_protocol[mes] = {
+                    "BRS": brs,
+                    "Frame Format": msg_frame_format[mes],
+                }
+        
+        if invalid_brs:
+            error_sheets["Invalid_BRS_Values"] = pd.DataFrame(
+                {"Message Name": invalid_brs.keys(), "Invalid BRS": invalid_brs.values()}
+            )
+        if invalid_brs_protocol:
+            df_data = []
+            for msg_name, values in invalid_brs_protocol.items():
+                df_data.append({
+                    "Message Name": msg_name,
+                    "BRS": values["BRS"],
+                    "Frame Format": values["Frame Format"],
+                })
+            error_sheets["BRS_Frame_Format_Mismatch"] = pd.DataFrame(df_data)
+    
+    # 7. Message Length errors
+    if "Frame Format" in data_frame.columns:
+        msg_len = dict(zip(data_frame["Msg Name"], data_frame["Length"]))
+        msg_frame_format = dict(zip(data_frame["Msg Name"], data_frame["Frame Format"]))
+        invalid_len = {}
+        for mes, length in msg_len.items():
+            if length == 8 and msg_frame_format[mes] != "StandardCAN":
+                invalid_len[mes] = {"Length": length, "Frame Format": msg_frame_format[mes]}
+            if length == 64 and msg_frame_format[mes] != "StandardCAN_FD":
+                invalid_len[mes] = {"Length": length, "Frame Format": msg_frame_format[mes]}
+        
+        if invalid_len:
+            df_data = []
+            for msg_name, values in invalid_len.items():
+                df_data.append({
+                    "Message Name": msg_name,
+                    "Length": values["Length"],
+                    "Frame Format": values["Frame Format"],
+                })
+            error_sheets["Invalid_Message_Lengths"] = pd.DataFrame(df_data)
+    
+    # 8. Signal Name errors
+    invalid_sig_names = []
+    too_long_sig_names = []
+    need_change_sig_names = []
+    sig_name = set(data_frame["Sig Name"].dropna().astype(str))
+    for name in sig_name:
+        if not re.fullmatch(r"^[A-Za-z0-9_\-]+$", name.strip()):
+            invalid_sig_names.append(name)
+        if len(name) > 64:
+            too_long_sig_names.append(name)
+        if len(name) > 36 and len(name) < 64:
+            need_change_sig_names.append(name)
+    
+    if invalid_sig_names:
+        error_sheets["Invalid_Signal_Names"] = pd.DataFrame({"Incorrect name": invalid_sig_names})
+    if too_long_sig_names:
+        error_sheets["Long_Signal_Names"] = pd.DataFrame(
+            {"Name": too_long_sig_names, "Length": [len(n) for n in too_long_sig_names]}
+        )
+    if need_change_sig_names:
+        error_sheets["Signal_Names_Need_Shortening"] = pd.DataFrame(
+            {"Name": need_change_sig_names, "Length": [len(n) for n in need_change_sig_names]}
+        )
+    
+    # 9. Signal Value Description errors
+    sig_desc = dict(zip(data_frame["Sig Name"], data_frame["Signal Value Description"]))
+    invalid_val = {}
+    invalid_nan = {}
+    for mes, val in sig_desc.items():
+        if pd.isna(val):
+            invalid_nan[mes] = "NaN"
+            continue
+        str_val = str(val)
+        if not re.fullmatch(r"^[A-Za-z0-9 ,.;]+$", str_val):
+            invalid_val[mes] = str_val
+    
+    if invalid_val:
+        error_sheets["Invalid_Signal_Value_Descriptions"] = pd.DataFrame(
+            {"Signal Name": invalid_val.keys(), "Invalid Description": invalid_val.values()}
+        )
+    if invalid_nan:
+        error_sheets["Missing_Signal_Value_Descriptions"] = pd.DataFrame(
+            {"Signal Name": invalid_nan.keys(), "Status": invalid_nan.values()}
+        )
+    
+    # 10. Signal Description errors
+    sig_desc = dict(zip(data_frame["Sig Name"], data_frame["Description"]))
+    invalid_val = {}
+    invalid_nan = {}
+    for mes, val in sig_desc.items():
+        if pd.isna(val):
+            invalid_nan[mes] = "NaN"
+            continue
+        str_val = str(val)
+        if not re.fullmatch(r"^[A-Za-z0-9 ,.;]+$", str_val):
+            invalid_val[mes] = str_val
+    
+    if invalid_val:
+        error_sheets["Invalid_Signal_Descriptions"] = pd.DataFrame(
+            {"Signal Name": invalid_val.keys(), "Invalid Description": invalid_val.values()}
+        )
+    if invalid_nan:
+        error_sheets["Missing_Signal_Descriptions"] = pd.DataFrame(
+            {"Signal Name": invalid_nan.keys(), "Status": invalid_nan.values()}
+        )
+    
+    # 11. Byte Order errors
+    byte_order = dict(zip(data_frame["Sig Name"], data_frame["Byte Order"]))
+    invalid_order = {}
+    for mes, byte in byte_order.items():
+        if byte != "Motorola MSB":
+            invalid_order[mes] = byte
+    
+    if invalid_order:
+        error_sheets["Invalid_Byte_Orders"] = pd.DataFrame(
+            {"Signal Name": invalid_order.keys(), "Byte Order": invalid_order.values()}
+        )
+    
+    # 12. Start Byte errors
+    start_byte = dict(zip(data_frame["Sig Name"], data_frame["Start Byte"]))
+    invalid_byte = {}
+    for sig, byte in start_byte.items():
+        if byte not in range(0, 8):
+            invalid_byte[sig] = byte
+    
+    if invalid_byte:
+        error_sheets["Invalid_Start_Bytes"] = pd.DataFrame(
+            {"Signal Name": invalid_byte.keys(), "Start Byte": invalid_byte.values()}
+        )
+    
+    # 13. Start Bit errors
+    start_bit = dict(zip(data_frame["Sig Name"], data_frame["Start Bit"]))
+    invalid_bit = {}
+    for sig, byte in start_bit.items():
+        if byte not in range(0, 64):
+            invalid_bit[sig] = byte
+    
+    if invalid_bit:
+        error_sheets["Invalid_Start_Bits"] = pd.DataFrame(
+            {"Signal Name": invalid_bit.keys(), "Start Bit": invalid_bit.values()}
+        )
+    
+    # 14. Signal Send Type errors
+    sig_send_type = dict(zip(data_frame["Sig Name"], data_frame["Signal Send Type"]))
+    msg_send_type = dict(zip(data_frame["Msg Name"], data_frame["Send Type"]))
+    validation_rules = {
+        "CA": ["Cycle", "IfActiveWithRepetition"],
+        "CE": ["Cycle", "OnWrite", "OnChange", "OnWriteWithRepetition", "OnChangeWithRepetition"],
+        "Cycle": ["Cycle"],
+        "Event": ["OnWrite", "OnChange", "OnWriteWithRepetition", "OnChangeWithRepetition"],
+        "IfActive": ["IfActive"],
+    }
+    invalid_signals = []
+    for sig_name, sig_type in sig_send_type.items():
+        msg_name = data_frame[data_frame["Sig Name"] == sig_name]["Msg Name"].iloc[0]
+        msg_type = msg_send_type.get(msg_name)
+        if msg_type in validation_rules:
+            allowed_types = validation_rules[msg_type]
+            if sig_type not in allowed_types:
+                invalid_signals.append({
+                    "Signal Name": sig_name,
+                    "Message Name": msg_name,
+                    "Message Send Type": msg_type,
+                    "Signal Send Type": sig_type,
+                    "Expected Types": ", ".join(allowed_types),
+                })
+    
+    if invalid_signals:
+        error_sheets["Invalid_Signal_Send_Types"] = pd.DataFrame(invalid_signals)
+    
+    # 15. Resolution errors
+    resol = dict(zip(data_frame["Sig Name"], data_frame["Resolution"]))
+    invalid_type = {}
+    invalid_val = {}
+    for sig, res in resol.items():
+        if pd.isna(res):
+            invalid_val[sig] = res
+            continue
+        if type(res) not in [int, float]:
+            invalid_type[sig] = res
+    
+    if invalid_type:
+        error_sheets["Invalid_Resolution_Types"] = pd.DataFrame(
+            {"Signal Name": invalid_type.keys(), "Resolution": invalid_type.values()}
+        )
+    if invalid_val:
+        error_sheets["Missing_Resolutions"] = pd.DataFrame(
+            {"Signal Name": invalid_val.keys(), "Status": invalid_val.values()}
+        )
+    
+    # 16. Offset errors
+    offset = dict(zip(data_frame["Sig Name"], data_frame["Offset"]))
+    invalid_val = {}
+    invalid_type = {}
+    for sig, off in offset.items():
+        if pd.isna(off):
+            invalid_val[sig] = off
+            continue
+        if type(off) not in [int, float]:
+            invalid_type[sig] = off
+    
+    if invalid_type:
+        error_sheets["Invalid_Offset_Types"] = pd.DataFrame(
+            {"Signal Name": invalid_type.keys(), "Offset": invalid_type.values()}
+        )
+    if invalid_val:
+        error_sheets["Missing_Offsets"] = pd.DataFrame(
+            {"Signal Name": invalid_val.keys(), "Status": invalid_val.values()}
+        )
+    
+    # 17. Minimum value errors
+    min_phys = dict(zip(data_frame["Sig Name"], data_frame["Min"]))
+    min_hex = dict(zip(data_frame["Sig Name"], data_frame["Min Hex"]))
+    resolutions = dict(zip(data_frame["Sig Name"], data_frame["Resolution"]))
+    offsets = dict(zip(data_frame["Sig Name"], data_frame["Offset"]))
+    invalid_signals = []
+    for sig_name in min_phys.keys():
+        phys = min_phys.get(sig_name)
+        hex_val = min_hex.get(sig_name)
+        res = resolutions.get(sig_name)
+        offset = offsets.get(sig_name, 0)
+        
+        if pd.isna(phys) or pd.isna(hex_val) or pd.isna(res):
+            continue
+        
+        try:
+            if isinstance(hex_val, str):
+                if hex_val.startswith("0x"):
+                    hex_int = int(hex_val, 16)
+                else:
+                    hex_int = int(hex_val)
+            else:
+                hex_int = int(hex_val)
+            
+            calculated_phys = hex_int * res + offset
+            
+            if not math.isclose(calculated_phys, phys, rel_tol=1e-9):
+                invalid_signals.append({
+                    "Signal Name": sig_name,
+                    "Min (Physical)": phys,
+                    "Min (Hex)": hex_val,
+                    "Calculated Physical": calculated_phys,
+                    "Resolution": res,
+                    "Offset": offset,
+                    "Difference": abs(calculated_phys - phys),
+                })
+        
+        except (ValueError, TypeError) as e:
+            invalid_signals.append({
+                "Signal Name": sig_name,
+                "Error": f"Invalid data format: {str(e)}",
+                "Min (Hex)": hex_val,
+                "Resolution": res,
+                "Offset": offset,
+            })
+    
+    if invalid_signals:
+        error_sheets["Invalid_Minimum_Values"] = pd.DataFrame(invalid_signals)
+    
+    # 18. Maximum value errors
+    max_phys = dict(zip(data_frame["Sig Name"], data_frame["Max"]))
+    max_hex = dict(zip(data_frame["Sig Name"], data_frame["Max Hex"])) if "Max Hex" in data_frame.columns else {}
+    if not max_hex:
+        max_hex = dict(zip(data_frame["Sig Name"], data_frame["Invalid"]))
+    resolutions = dict(zip(data_frame["Sig Name"], data_frame["Resolution"]))
+    offsets = dict(zip(data_frame["Sig Name"], data_frame["Offset"]))
+    invalid_signals = []
+    for sig_name in max_phys.keys():
+        phys = max_phys.get(sig_name)
+        hex_val = max_hex.get(sig_name)
+        res = resolutions.get(sig_name)
+        offset = offsets.get(sig_name, 0)
+        
+        if pd.isna(phys) or pd.isna(hex_val) or pd.isna(res):
+            continue
+        
+        try:
+            if isinstance(hex_val, str):
+                if hex_val.startswith("0x"):
+                    hex_int = int(hex_val, 16)
+                else:
+                    hex_int = int(hex_val)
+            else:
+                hex_int = int(hex_val)
+            
+            calculated_phys = hex_int * res + offset
+            
+            if not math.isclose(calculated_phys, phys, rel_tol=1e-9):
+                invalid_signals.append({
+                    "Signal Name": sig_name,
+                    "Max (Physical)": phys,
+                    "Max (Hex)": hex_val,
+                    "Calculated Physical": calculated_phys,
+                    "Resolution": res,
+                    "Offset": offset,
+                    "Difference": abs(calculated_phys - phys),
+                })
+        
+        except (ValueError, TypeError) as e:
+            invalid_signals.append({
+                "Signal Name": sig_name,
+                "Error": f"Invalid data format: {str(e)}",
+                "Max (Hex)": hex_val,
+                "Resolution": res,
+                "Offset": offset,
+            })
+    
+    if invalid_signals:
+        error_sheets["Invalid_Maximum_Values"] = pd.DataFrame(invalid_signals)
+    
+    # Create the Excel file
+    if error_sheets:
+        with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+            for sheet_name, df in error_sheets.items():
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
+        return True
+    else:
+        return False
+
 
 def validate_messages_name(data_frame: pd.DataFrame) -> bool:
     invalid_names = []
@@ -1113,6 +1539,20 @@ def main():
             processed_df = create_correct_df(df)
 
             st.success("File loaded successfully!")
+
+            if st.button("Export All Validation Errors to Excel"):
+                output_path = "validation_errors.xlsx"
+                if export_validation_errors_to_excel(processed_df, output_path):
+                    st.success(f"Validation errors exported to {output_path}")
+                    with open(output_path, "rb") as f:
+                        st.download_button(
+                            label="Download Error Report",
+                            data=f,
+                            file_name=output_path,
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        )
+                else:
+                    st.success("No validation errors found!")
 
             (
                 tab1,
