@@ -14,12 +14,17 @@ def set_page_config():
  
 def gateway_selection():
     return st.radio(
-        "Выберите гейтвей:",
+        "Choose gateway:",
         ("SGW", "CGW")
     )
  
 def files_upload():
-    return st.file_uploader("Загрузите Excel файлы", type=["xlsx"], accept_multiple_files=True)
+    uploaded_files = st.file_uploader("Load domain matrices", type=["xlsx"], accept_multiple_files=True)
+    if uploaded_files:
+        st.success(f"✅ Uploaded matrices: {len(uploaded_files)}")
+        for file in uploaded_files:  # ограничиваем вывод
+            st.write(file.name)
+    return uploaded_files
  
 def get_pd_data(uploaded_files):
     if uploaded_files:
@@ -38,7 +43,7 @@ def get_routing_table_template_path(input_path, output_path, uploaded_files):
     if uploaded_files:
         # Загрузить сырой шаблон
         routing_table_template = load_workbook(input_path)
-        with open('./pages/template_values 1.json', 'r', encoding='utf-8') as template_values_json:
+        with open('./pages/template_values.json', 'r', encoding='utf-8') as template_values_json:
             template_values = json.load(template_values_json)
         all_domains = {"BD", "DG", "PT", "CH", "DZ", "ET", "SGW"}
         routed_domains = []
@@ -105,7 +110,7 @@ def calculate_routing_table_data(pd_df_matrices, gateway):
             source_gateway_column = source_matrix.filter(like=gateway).columns
             # Проверка на наличие выбранного шлюза в ECU матрицы источника
             if len(source_gateway_column) == 0:
-                st.error(f"Gateway '{gateway}' not found in source matrix '{source}'. Please check if the gateway is correctly specified.")
+                st.error(f"'{gateway}' not in '{source}'. Check gateway.")
                 st.stop()
             routed_ids_list = routed_ids[message_id_column_name].tolist()
             source_matrix_routed_messages = source_matrix[(source_matrix[message_id_column_name].isin(routed_ids_list)) & (source_matrix[source_gateway_column[0]] == 'R')]
@@ -115,7 +120,7 @@ def calculate_routing_table_data(pd_df_matrices, gateway):
             target_gateway_column = target_matrix.filter(like=gateway).columns
             # Проверка на наличие выбранного шлюза в ECU матрицы получателя
             if len(target_gateway_column) == 0:
-                st.error(f"Gateway '{gateway}' not found in target matrix '{target}'. Please check if the gateway is correctly specified.")
+                st.error(f"'{gateway}' not in '{target}'. Check gateway.")
                 st.stop()
             target_matrix_routed_messages = target_matrix[(target_matrix[message_id_column_name].isin(routed_ids_list)) & (target_matrix[target_gateway_column[0]] == 'S')]
             # Определяются маршрутизируемые сообщения между данными матрицами
@@ -129,7 +134,7 @@ def calculate_routing_table_data(pd_df_matrices, gateway):
  
 def generate_routing_table(routing_table_data, routing_table_template_path, gateway):
     if (routing_table_data) and (routing_table_template_path) and (gateway):
-        generate_btn = st.button("Сгенерировать")
+        generate_btn = st.button("Generate")
         if generate_btn:
             # Загрузить подготовленный шаблон
             routing_table = load_workbook(routing_table_template_path)
@@ -266,12 +271,12 @@ def download_routing_table(routing_table, gateway):
         routing_table.save(buffer)
         buffer.seek(0)
         st.download_button(
-            label="Скачать отчет",
+            label="Download routing map",
             data=buffer,
             file_name=output_path,
             mime="application/octet-stream",
             type="primary",
-            help="Нажмите чтобы скачать файл в формате Excel"
+            help="Press to download .xlsx RoutingMap"
         )
  
 def main():
@@ -294,7 +299,7 @@ def main():
         download_routing_table(routing_table, gateway)
  
     except Exception as e:
-        st.error(f"Произошла ошибка: {str(e)}")
+        st.error(f"Error occured: {str(e)}")
         st.stop()
  
 if __name__ == "__main__":
