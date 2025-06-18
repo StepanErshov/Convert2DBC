@@ -5,11 +5,11 @@ import os
 from datetime import datetime
 import re
 
-st.set_page_config(
-    page_title="Excel to DBC Converter", 
-    page_icon=":car:", 
-    layout="wide"
-)
+# st.set_page_config(
+#     page_title="Excel to DBC Converter", 
+#     page_icon=":car:", 
+#     layout="wide"
+# )
 
 st.markdown(
     """

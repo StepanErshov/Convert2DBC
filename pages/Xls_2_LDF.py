@@ -7,11 +7,11 @@ import re
 import logging
 from typing import List, Tuple
 
-st.set_page_config(
-    page_title="Excel to LDF Converter",
-    page_icon="🚗",
-    layout="wide"
-)
+# st.set_page_config(
+#     page_title="Excel to LDF Converter",
+#     page_icon="🚗",
+#     layout="wide"
+# )
 
 st.markdown("""
     <style>

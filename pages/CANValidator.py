@@ -6,7 +6,7 @@ import pprint
 import streamlit as st
 import os
 
-st.set_page_config(page_title="CAN Validator", page_icon="⚠️", layout="wide")
+# st.set_page_config(page_title="CAN Validator", page_icon="⚠️", layout="wide")
 
 st.markdown(
     """

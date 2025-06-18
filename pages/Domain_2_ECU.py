@@ -9,12 +9,12 @@ from openpyxl.styles import Alignment  # для задания выравнив�
 import zipfile  # для создания zip-архива
   
 # Настройка страницы Streamlit
-st.set_page_config(
-    page_title="ECU Splitter",
-    page_icon="🏴",
-    layout="centered",
-    initial_sidebar_state="expanded"
-)
+# st.set_page_config(
+#     page_title="ECU Splitter",
+#     page_icon="🏴",
+#     layout="centered",
+#     initial_sidebar_state="expanded"
+# )
   
 st.title("Domain Excel Splitter")
 st.image("https://github.com/StepanErshov/Convert2DBC/blob/main/pages/excel_split_example.png?raw=true", caption="Domain Excel → ECU Excel")
