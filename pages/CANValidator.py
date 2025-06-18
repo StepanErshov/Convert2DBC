@@ -499,7 +499,7 @@ def validate_messages_BRS(
     return False
 
 
-def validat_messages_length(data_frame: pd.DataFrame) -> bool:
+def validate_messages_length(data_frame: pd.DataFrame) -> bool:
     msg_len = dict(zip(data_frame["Msg Name"], data_frame["Length"]))
     msg_frame_format = dict(zip(data_frame["Msg Name"], data_frame["Frame Format"]))
 
@@ -535,7 +535,7 @@ def validat_messages_length(data_frame: pd.DataFrame) -> bool:
     return False
 
 
-def validat_signal_names(data_frame: pd.DataFrame) -> bool:
+def validate_signal_names(data_frame: pd.DataFrame) -> bool:
     invalid_names = []
     too_long_names = []
     need_change = []
@@ -584,7 +584,7 @@ def validat_signal_names(data_frame: pd.DataFrame) -> bool:
     return False
 
 
-def validat_signal_value_description(data_frame: pd.DataFrame) -> bool:
+def validate_signal_value_description(data_frame: pd.DataFrame) -> bool:
     sig_desc = dict(zip(data_frame["Sig Name"], data_frame["Signal Value Description"]))
 
     invalid_val = {}
@@ -637,7 +637,7 @@ def validat_signal_value_description(data_frame: pd.DataFrame) -> bool:
     return False if (invalid_nan or invalid_val) else True
 
 
-def validat_signal_descriprion(data_frame: pd.DataFrame) -> bool:
+def validate_signal_descriprion(data_frame: pd.DataFrame) -> bool:
     sig_desc = dict(zip(data_frame["Sig Name"], data_frame["Description"]))
 
     invalid_val = {}
@@ -690,7 +690,7 @@ def validat_signal_descriprion(data_frame: pd.DataFrame) -> bool:
     return False if (invalid_nan or invalid_val) else True
 
 
-def validat_byte_order(data_frame: pd.DataFrame) -> bool:
+def validate_byte_order(data_frame: pd.DataFrame) -> bool:
 
     byte_order = dict(zip(data_frame["Sig Name"], data_frame["Byte Order"]))
 
@@ -719,7 +719,7 @@ def validat_byte_order(data_frame: pd.DataFrame) -> bool:
     return False
 
 
-def validat_start_byte(data_frame: pd.DataFrame) -> bool:
+def validate_start_byte(data_frame: pd.DataFrame) -> bool:
     start_byte = dict(zip(data_frame["Sig Name"], data_frame["Start Byte"]))
 
     invalid_byte = {}
@@ -748,7 +748,7 @@ def validat_start_byte(data_frame: pd.DataFrame) -> bool:
     return False
 
 
-def validat_start_bit(data_frame: pd.DataFrame) -> bool:
+def validate_start_bit(data_frame: pd.DataFrame) -> bool:
     start_bit = dict(zip(data_frame["Sig Name"], data_frame["Start Bit"]))
 
     invalid_bit = {}
@@ -777,7 +777,7 @@ def validat_start_bit(data_frame: pd.DataFrame) -> bool:
     return False
 
 
-def validat_signal_send_type(data_frame: pd.DataFrame) -> bool:
+def validate_signal_send_type(data_frame: pd.DataFrame) -> bool:
     sig_send_type = dict(zip(data_frame["Sig Name"], data_frame["Signal Send Type"]))
     msg_send_type = dict(zip(data_frame["Msg Name"], data_frame["Send Type"]))
 
@@ -838,6 +838,90 @@ def validat_signal_send_type(data_frame: pd.DataFrame) -> bool:
             )
         return False
 
+def validate_resolution(data_frame: pd.DataFrame) -> bool:
+    resol = dict(zip(data_frame["Sig Name"], data_frame["Resolution"]))
+
+    invalid_type = {}
+    invalid_val = {}
+
+    for sig, res in resol.items():
+        if pd.isna(res):
+            invalid_val[sig] = res
+            continue
+        
+        if type(res) not in [int, float]:
+            invalid_type[sig] = res
+
+    if not invalid_type and not invalid_val:
+        st.success("All Resolutions are correct!")
+        return True
+    
+    if invalid_type:
+        with st.expander("Incorrect Resolution type", expanded=True):
+            st.error(f"Found {len(invalid_type.keys())} inccorect resolution type")
+            st.dataframe(
+                pd.DataFrame(
+                    {"Sig Name": invalid_type.keys(),
+                     "Incorrect Resolution": invalid_type.values()}
+                )
+            )
+            st.info("Resolution is only int or float")
+
+    if invalid_val:
+        with st.expander("Incorrect Resolution value", expanded=True):
+            st.error(f"Found {len(invalid_val.keys())} incorrect resolution value")
+            st.dataframe(
+                pd.DataFrame(
+                    {"Sig Name": invalid_val.keys(),
+                     "Incorrect Resolution": invalid_val.values()}
+                )
+            )
+            st.info("Resolution must be in matrix")
+
+    return False
+
+def validate_offset(data_frame: pd.DataFrame) -> bool:
+    offset = dict(zip(data_frame["Sig Name"], data_frame["Offset"]))
+
+    invalid_val = {}
+    invalid_type = {}
+
+    for sig, off in offset.items():
+        if pd.isna(off):
+            invalid_val[sig] = off
+            continue
+        
+        if type(off) not in [int, float]:
+            invalid_type[sig] = off
+
+    if not invalid_val and not invalid_type:
+        st.success("All Signals Offset are correct!")
+        return True
+    
+    if invalid_type:
+        with st.expander("Incorrect Offset type", expanded=True):
+            st.error(f"Found {len(invalid_type.keys())} incorrect offset type")
+            st.dataframe(
+                pd.DataFrame(
+                    {"Sig Name": invalid_type.keys(),
+                     "Incorrect Offset": invalid_type.values()}
+                )
+            )
+            st.info("Offset must be int or float")
+
+    if invalid_val:
+        with st.expander("Incorrect Offset value", expanded=True):
+            st.error(f"Found {len(invalid_val.keys())} incorrect offset value")
+            st.dataframe(
+                pd.DataFrame({
+                    "Sig Name": invalid_val.keys(),
+                    "Incorrect Offset": invalid_val.values()
+                })
+            )
+            st.info("Offset must be in matrix")
+
+    return False
+
 
 def main():
     st.title("CAN Messages Validator (⚠️Under development⚠️)")
@@ -865,6 +949,8 @@ def main():
                 tab12,
                 tab13,
                 tab14,
+                tab15,
+                tab16
             ) = st.tabs(
                 [
                     "Message Names",
@@ -881,6 +967,8 @@ def main():
                     "Start Byte",
                     "Start Bit",
                     "Signal Send Type",
+                    "Resolution",
+                    "Offset"
                 ]
             )
 
@@ -903,28 +991,34 @@ def main():
                     validate_messages_BRS(uploaded_file.name, processed_df)
 
             with tab7:
-                    validat_messages_length(processed_df)
+                    validate_messages_length(processed_df)
 
             with tab8:
-                    validat_signal_names(processed_df)
+                    validate_signal_names(processed_df)
 
             with tab9:
-                    validat_signal_value_description(processed_df)
+                    validate_signal_value_description(processed_df)
 
             with tab10:
-                    validat_signal_descriprion(processed_df)
+                    validate_signal_descriprion(processed_df)
 
             with tab11:
-                    validat_byte_order(processed_df)
+                    validate_byte_order(processed_df)
 
             with tab12:
-                    validat_start_byte(processed_df)
+                    validate_start_byte(processed_df)
 
             with tab13:
-                    validat_start_bit(processed_df)
+                    validate_start_bit(processed_df)
 
             with tab14:
-                    validat_signal_send_type(processed_df)
+                    validate_signal_send_type(processed_df)
+
+            with tab15:
+                validate_resolution(processed_df)
+            
+            with tab16:
+                validate_offset(processed_df)
 
         except Exception as e:
             st.error(f"Error processing file: {str(e)}")
