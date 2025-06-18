@@ -885,61 +885,45 @@ def main():
             )
 
             with tab1:
-                if st.button("Check Message Names", key="name_check"):
                     validate_messages_name(processed_df)
 
             with tab2:
-                if st.button("Check Message Types", key="type_check"):
                     validate_messages_type(processed_df)
 
             with tab3:
-                if st.button("Check Message ID", key="id_check"):
                     validate_messages_id(processed_df)
 
             with tab4:
-                if st.button("Check Messages Send Type", key="send_type_check"):
                     validate_messages_send_type(processed_df)
 
             with tab5:
-                if st.button("Check Messages Frame Format", key="frame_format_check"):
                     validate_messages_frame_fromat(uploaded_file.name, processed_df)
 
             with tab6:
-                if st.button("Check Messages BRS", key="brs_check"):
                     validate_messages_BRS(uploaded_file.name, processed_df)
 
             with tab7:
-                if st.button("Check Messages Lenght", key="len_check"):
                     validat_messages_length(processed_df)
 
             with tab8:
-                if st.button("Check Signals Names", key="sig_name_check"):
                     validat_signal_names(processed_df)
 
             with tab9:
-                if st.button(
-                    "Check Signal Value Description", key="sig_val_desc_check"
-                ):
                     validat_signal_value_description(processed_df)
 
             with tab10:
-                if st.button("Check Signal Description", key="sig_desc_check"):
                     validat_signal_descriprion(processed_df)
 
             with tab11:
-                if st.button("Check Byte Order", key="byte_order_check"):
                     validat_byte_order(processed_df)
 
             with tab12:
-                if st.button("Check Start Byte", key="start_byte_check"):
                     validat_start_byte(processed_df)
 
             with tab13:
-                if st.button("Check Start Bit", key="start_bit_check"):
                     validat_start_bit(processed_df)
 
             with tab14:
-                if st.button("Check Signal Send Type", key="signal_send_type_check"):
                     validat_signal_send_type(processed_df)
 
         except Exception as e:

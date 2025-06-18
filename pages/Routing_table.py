@@ -38,7 +38,7 @@ def get_routing_table_template_path(input_path, output_path, uploaded_files):
     if uploaded_files:
         # Загрузить сырой шаблон
         routing_table_template = load_workbook(input_path)
-        with open('../support_files/template_values.json', 'r', encoding='utf-8') as template_values_json:
+        with open('./pages/template_values 1.json', 'r', encoding='utf-8') as template_values_json:
             template_values = json.load(template_values_json)
         all_domains = {"BD", "DG", "PT", "CH", "DZ", "ET", "SGW"}
         routed_domains = []
@@ -283,7 +283,7 @@ def main():
         # Предоставить выбор шлюза
         gateway = gateway_selection()
         # Подготовить шаблон и получить его директорию
-        routing_table_template_path = get_routing_table_template_path("../support_files/routing_table_template.xlsx", f"routing_table_template{datetime.now().strftime("%Y_%m_%d")}.xlsx", uploaded_files)
+        routing_table_template_path = get_routing_table_template_path("./pages/routing_table_template.xlsx", f"routing_table_template{datetime.now().strftime("%Y_%m_%d")}.xlsx", uploaded_files)
         # Считать загруженные файлы в pandas датафреймы
         pd_df_matrices = get_pd_data(uploaded_files)
         # Обработать загруженные данные для получения данных для заполнения таблицы маршрутизации

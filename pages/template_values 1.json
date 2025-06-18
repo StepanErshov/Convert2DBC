@@ -1,0 +1,6 @@
+{
+    "release date":         "Current date",
+    "source domains":       "Source domains",
+    "target domains":       "Target domains",
+    "source-target data":   ["Source:", "Target:"]
+}
