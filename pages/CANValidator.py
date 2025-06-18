@@ -538,6 +538,272 @@ def validat_messages_length(data_frame: pd.DataFrame) -> bool:
 
     return False
 
+def validat_signal_names(data_frame: pd.DataFrame) -> bool:
+    invalid_names = []
+    too_long_names = []
+    need_change = []
+    sig_name = set(data_frame["Sig Name"].dropna().astype(str))
+
+    for name in sig_name:
+        if not re.fullmatch(r"^[A-Za-z0-9_\-]+$", name.strip()):
+            invalid_names.append(name)
+
+        if len(name) > 64:
+            too_long_names.append(name)
+        if len(name) > 36 and len(name) < 64:
+            need_change.append(name)
+
+    if not invalid_names and not too_long_names and not need_change:
+        st.success("All signals titles are correct!")
+        return True
+
+    if invalid_names:
+        with st.expander(
+            "Incorrect names (contain prohibited characters)", expanded=True
+        ):
+            st.error(f"Found {len(invalid_names)} incorrect name:")
+            st.dataframe(pd.DataFrame({"Incorrect name": invalid_names}))
+            st.info("Allowed characters: A-Z, a-z, 0-9, _, -")
+
+    if too_long_names:
+        with st.expander("Names too long (>64 characters)", expanded=True):
+            st.warning(f"Found {len(too_long_names)} too long name:")
+            st.dataframe(
+                pd.DataFrame(
+                    {"Name": too_long_names, "Len": [len(n) for n in too_long_names]}
+                )
+            )
+    
+    if need_change:
+        with st.expander("Names, which need change (>36 characters)", expanded=True):
+            st.warning(f"Found {len(need_change)} need change name:")
+            st.dataframe(
+                pd.DataFrame(
+                    {"Name": need_change, "Len": [len(n) for n in need_change]}
+                )
+            )
+            st.info('Please, try to make the Signal name shorter')
+
+    return False
+
+def validat_signal_value_description(data_frame: pd.DataFrame) -> bool:
+    sig_desc = dict(zip(data_frame["Sig Name"], data_frame["Signal Value Description"]))
+    
+    invalid_val = {}
+    invalid_nan = {}
+
+    for mes, val in sig_desc.items():
+        if pd.isna(val):
+            invalid_nan[mes] = "NaN"
+            continue
+            
+        str_val = str(val)
+        if not re.fullmatch(r'^[A-Za-z0-9 ,.;]+$', str_val):
+            invalid_val[mes] = str_val
+
+    if not invalid_nan and not invalid_val:
+        st.success("All Signal Values Description are correct!")
+        return True
+    
+    if invalid_val:
+        with st.expander("Incorrect signal value description (not needed characters)", expanded=True):
+            st.error(f"Found {len(invalid_val)} value descriptions with wrong characters")
+            st.dataframe(
+                pd.DataFrame(
+                    {
+                        "Signal Name": invalid_val.keys(),
+                        "Incorrect Description": invalid_val.values()
+                    }
+                )
+            )
+            st.info("Allowed characters: A-Z, a-z, 0-9, spaces, commas, periods, and semicolons")
+    
+    if invalid_nan:
+        with st.expander("NaN Value Description", expanded=True):
+            st.error(f"Found {len(invalid_nan)} signals without value description")
+            st.dataframe(
+                pd.DataFrame(
+                    {
+                        "Signal Name": invalid_nan.keys(),
+                        "Description Status": invalid_nan.values()
+                    }
+                )
+            )
+    
+    return False if (invalid_nan or invalid_val) else True
+
+
+def validat_signal_descriprion(data_frame: pd.DataFrame) -> bool:
+    sig_desc = dict(zip(data_frame["Sig Name"], data_frame["Description"]))
+    
+    invalid_val = {}
+    invalid_nan = {}
+
+    for mes, val in sig_desc.items():
+        if pd.isna(val):
+            invalid_nan[mes] = "NaN"
+            continue
+    
+        str_val = str(val)
+        if not re.fullmatch(r'^[A-Za-z0-9 ,.;]+$', str_val):
+            invalid_val[mes] = str_val
+
+    if not invalid_nan and not invalid_val:
+        st.success("All Signal Description are correct!")
+        return True
+    
+    if invalid_val:
+        with st.expander("Incorrect signal description (not needed characters)", expanded=True):
+            st.error(f"Found {len(invalid_val)} value descriptions with wrong characters")
+            st.dataframe(
+                pd.DataFrame(
+                    {
+                        "Signal Name": invalid_val.keys(),
+                        "Incorrect Description": invalid_val.values()
+                    }
+                )
+            )
+            st.info("Allowed characters: A-Z, a-z, 0-9, spaces, commas, periods, and semicolons")
+    
+    if invalid_nan:
+        with st.expander("NaN Value Description", expanded=True):
+            st.error(f"Found {len(invalid_nan)} signals without value description")
+            st.dataframe(
+                pd.DataFrame(
+                    {
+                        "Signal Name": invalid_nan.keys(),
+                        "Description Status": invalid_nan.values()
+                    }
+                )
+            )
+    
+    return False if (invalid_nan or invalid_val) else True
+
+def validat_byte_order(data_frame: pd.DataFrame) -> bool:
+    
+    byte_order = dict(zip(data_frame["Sig Name"], data_frame["Byte Order"]))
+
+    invalid_order = {}
+
+    for mes, byte in byte_order.items():
+        if byte != "Motorola MSB":
+            invalid_order[mes] = byte
+
+    if not invalid_order:
+        st.success("All Signal Byte Orders are correct!")
+
+    if invalid_order:
+        with st.expander("Incorrect Byte Order", expanded=True):
+            st.error(f"Found {len(invalid_order.keys())} incorrect byte order")
+            st.dataframe(
+                pd.DataFrame(
+                    {"Signal Name": invalid_order.keys(),
+                     "Incorrect Byte Order": invalid_order.values()}
+                )
+            )
+            st.info("Byte Order in valid value 'Motorola MSB'")
+
+    return False
+
+
+def validat_start_byte(data_frame: pd.DataFrame) -> bool:
+    start_byte = dict(zip(data_frame["Sig Name"], data_frame["Start Byte"]))
+
+    invalid_byte = {}
+
+    for sig, byte in start_byte.items():
+        if byte not in range(0, 8):
+            invalid_byte[sig] = byte
+
+    if not invalid_byte:
+        st.success("All Start Byte are correct!")
+        return True
+    
+    if invalid_byte:
+        with st.expander("Inccorect Start Byte", expanded=True):
+            st.error(f"Found {len(invalid_byte.keys())} incorrect start byte")
+            st.dataframe(
+                pd.DataFrame(
+                    {"Signal Name": invalid_byte.keys(),
+                     "Incorrect Start Byte": invalid_byte.values()}
+                )
+            )
+            st.info("Start Byte is only a number, in the range from 0 to 7")
+
+    return False
+
+
+def validat_start_bit(data_frame: pd.DataFrame) -> bool:
+    start_bit = dict(zip(data_frame["Sig Name"], data_frame["Start Bit"]))
+
+    invalid_bit = {}
+
+    for sig, byte in start_bit.items():
+        if byte not in range(0, 64):
+            invalid_bit[sig] = byte
+
+    if not invalid_bit:
+        st.success("All Start Bit are correct!")
+        return True
+    
+    if invalid_bit:
+        with st.expander("Inccorect Start Bit", expanded=True):
+            st.error(f"Found {len(invalid_bit.keys())} incorrect start bit")
+            st.dataframe(
+                pd.DataFrame(
+                    {"Signal Name": invalid_bit.keys(),
+                     "Incorrect Start Bit": invalid_bit.values()}
+                )
+            )
+            st.info("Start Bit is only a number, in the range from 0 to 63")
+
+    return False
+
+def validat_signal_send_type(data_frame: pd.DataFrame) -> bool:
+    sig_send_type = dict(zip(data_frame["Sig Name"], data_frame["Signal Send Type"]))
+    msg_send_type = dict(zip(data_frame["Msg Name"], data_frame["Send Type"]))
+
+    validation_rules = {
+        'CA': ['Cycle', 'IfActiveWithRepetition'],
+        'CE': ['Cycle', 'OnWrite', 'OnChange', 'OnWriteWithRepetition', 'OnChangeWithRepetition'],
+        'Cycle': ['Cycle'],
+        'Event': ['OnWrite', 'OnChange', 'OnWriteWithRepetition', 'OnChangeWithRepetition'],
+        'IfActive': ['IfActive']
+    }
+    
+    invalid_signals = []
+    
+    for sig_name, sig_type in sig_send_type.items():
+        msg_name = data_frame[data_frame["Sig Name"] == sig_name]["Msg Name"].iloc[0]
+        msg_type = msg_send_type.get(msg_name)
+
+        if msg_type in validation_rules:
+            allowed_types = validation_rules[msg_type]
+            if sig_type not in allowed_types:
+                invalid_signals.append({
+                    'Signal Name': sig_name,
+                    'Message Name': msg_name,
+                    'Message Send Type': msg_type,
+                    'Signal Send Type': sig_type,
+                    'Expected Types': ", ".join(allowed_types)
+                })
+    
+    if not invalid_signals:
+        st.success("All Signal Send Types are correct!")
+        return True
+    else:
+        with st.expander("Invalid Signal Send Types", expanded=True):
+            st.error(f"Found {len(invalid_signals)} invalid signal send types:")
+            st.dataframe(pd.DataFrame(invalid_signals))
+            st.info("""
+            Validation rules:
+            - If Msg Send Type == 'CA': Signal Send Type must be in ['Cycle', 'IfActiveWithRepetition']
+            - If Msg Send Type == 'CE': Signal Send Type must be in ['Cycle', 'OnWrite', 'OnChange', 'OnWriteWithRepetition', 'OnChangeWithRepetition']
+            - If Msg Send Type == 'Cycle': Signal Send Type must be 'Cycle'
+            - If Msg Send Type == 'Event': Signal Send Type must be in ['OnWrite', 'OnChange', 'OnWriteWithRepetition', 'OnChangeWithRepetition']
+            - If Msg Send Type == 'IfActive': Signal Send Type must be 'IfActive'
+            """)
+        return False
 
 def main():
     st.title("CAN Messages Validator (⚠️Under development⚠️)")
@@ -550,7 +816,7 @@ def main():
 
             st.success("File loaded successfully!")
 
-            tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
+            tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13, tab14 = st.tabs(
                 [
                     "Message Names",
                     "Message Types",
@@ -559,6 +825,13 @@ def main():
                     "Messages Frame Format",
                     "Messages BRS",
                     "Messages Lenght",
+                    "Signal Name",
+                    "Signal Value Description",
+                    "Signal Description",
+                    "Byte Order",
+                    "Start Byte",
+                    "Start Bit",
+                    "Signal Send Type"
                 ]
             )
 
@@ -589,6 +862,34 @@ def main():
             with tab7:
                 if st.button("Check Messages Lenght", key="len_check"):
                     validat_messages_length(processed_df)
+
+            with tab8:
+                if st.button("Check Signals Names", key="sig_name_check"):
+                    validat_signal_names(processed_df)
+
+            with tab9:
+                if st.button("Check Signal Value Description", key="sig_val_desc_check"):
+                    validat_signal_value_description(processed_df)
+
+            with tab10:
+                if st.button("Check Signal Description", key="sig_desc_check"):
+                    validat_signal_descriprion(processed_df)
+
+            with tab11:
+                if st.button("Check Byte Order", key="byte_order_check"):
+                    validat_byte_order(processed_df)
+
+            with tab12:
+                if st.button("Check Start Byte", key="start_byte_check"):
+                    validat_start_byte(processed_df)
+
+            with tab13:
+                if st.button("Check Start Bit", key="start_bit_check"):
+                    validat_start_bit(processed_df)
+
+            with tab14:
+                if st.button("Check Signal Send Type", key="signal_send_type_check"):
+                    validat_signal_send_type(processed_df)
 
         except Exception as e:
             st.error(f"Error processing file: {str(e)}")
