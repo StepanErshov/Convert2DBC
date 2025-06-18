@@ -841,6 +841,7 @@ def validate_signal_send_type(data_frame: pd.DataFrame) -> bool:
             )
         return False
 
+
 def validate_resolution(data_frame: pd.DataFrame) -> bool:
     resol = dict(zip(data_frame["Sig Name"], data_frame["Resolution"]))
 
@@ -851,21 +852,23 @@ def validate_resolution(data_frame: pd.DataFrame) -> bool:
         if pd.isna(res):
             invalid_val[sig] = res
             continue
-        
+
         if type(res) not in [int, float]:
             invalid_type[sig] = res
 
     if not invalid_type and not invalid_val:
         st.success("All Resolutions are correct!")
         return True
-    
+
     if invalid_type:
         with st.expander("Incorrect Resolution type", expanded=True):
             st.error(f"Found {len(invalid_type.keys())} inccorect resolution type")
             st.dataframe(
                 pd.DataFrame(
-                    {"Sig Name": invalid_type.keys(),
-                     "Incorrect Resolution": invalid_type.values()}
+                    {
+                        "Sig Name": invalid_type.keys(),
+                        "Incorrect Resolution": invalid_type.values(),
+                    }
                 )
             )
             st.info("Resolution is only int or float")
@@ -875,13 +878,16 @@ def validate_resolution(data_frame: pd.DataFrame) -> bool:
             st.error(f"Found {len(invalid_val.keys())} incorrect resolution value")
             st.dataframe(
                 pd.DataFrame(
-                    {"Sig Name": invalid_val.keys(),
-                     "Incorrect Resolution": invalid_val.values()}
+                    {
+                        "Sig Name": invalid_val.keys(),
+                        "Incorrect Resolution": invalid_val.values(),
+                    }
                 )
             )
             st.info("Resolution must be in matrix")
 
     return False
+
 
 def validate_offset(data_frame: pd.DataFrame) -> bool:
     offset = dict(zip(data_frame["Sig Name"], data_frame["Offset"]))
@@ -893,21 +899,23 @@ def validate_offset(data_frame: pd.DataFrame) -> bool:
         if pd.isna(off):
             invalid_val[sig] = off
             continue
-        
+
         if type(off) not in [int, float]:
             invalid_type[sig] = off
 
     if not invalid_val and not invalid_type:
         st.success("All Signals Offset are correct!")
         return True
-    
+
     if invalid_type:
         with st.expander("Incorrect Offset type", expanded=True):
             st.error(f"Found {len(invalid_type.keys())} incorrect offset type")
             st.dataframe(
                 pd.DataFrame(
-                    {"Sig Name": invalid_type.keys(),
-                     "Incorrect Offset": invalid_type.values()}
+                    {
+                        "Sig Name": invalid_type.keys(),
+                        "Incorrect Offset": invalid_type.values(),
+                    }
                 )
             )
             st.info("Offset must be int or float")
@@ -916,10 +924,12 @@ def validate_offset(data_frame: pd.DataFrame) -> bool:
         with st.expander("Incorrect Offset value", expanded=True):
             st.error(f"Found {len(invalid_val.keys())} incorrect offset value")
             st.dataframe(
-                pd.DataFrame({
-                    "Sig Name": invalid_val.keys(),
-                    "Incorrect Offset": invalid_val.values()
-                })
+                pd.DataFrame(
+                    {
+                        "Sig Name": invalid_val.keys(),
+                        "Incorrect Offset": invalid_val.values(),
+                    }
+                )
             )
             st.info("Offset must be in matrix")
 
@@ -931,81 +941,96 @@ def validate_minimum(data_frame: pd.DataFrame) -> bool:
     min_hex = dict(zip(data_frame["Sig Name"], data_frame["Min Hex"]))
     resolutions = dict(zip(data_frame["Sig Name"], data_frame["Resolution"]))
     offsets = dict(zip(data_frame["Sig Name"], data_frame["Offset"]))
-    
+
     invalid_signals = []
-    
+
     for sig_name in min_phys.keys():
         phys = min_phys.get(sig_name)
         hex_val = min_hex.get(sig_name)
         res = resolutions.get(sig_name)
         offset = offsets.get(sig_name, 0)
-        
+
         if pd.isna(phys) or pd.isna(hex_val) or pd.isna(res):
             continue
-            
+
         try:
             if isinstance(hex_val, str):
-                if hex_val.startswith('0x'):
+                if hex_val.startswith("0x"):
                     hex_int = int(hex_val, 16)
                 else:
                     hex_int = int(hex_val)
             else:
                 hex_int = int(hex_val)
-            
+
             calculated_phys = hex_int * res + offset
-            
+
             if not math.isclose(calculated_phys, phys, rel_tol=1e-9):
-                invalid_signals.append({
-                    'Signal Name': sig_name,
-                    'Min (Physical)': phys,
-                    'Min (Hex)': hex_val,
-                    'Calculated Physical': calculated_phys,
-                    'Resolution': res,
-                    'Offset': offset,
-                    'Difference': abs(calculated_phys - phys)
-                })
-                
+                invalid_signals.append(
+                    {
+                        "Signal Name": sig_name,
+                        "Min (Physical)": phys,
+                        "Min (Hex)": hex_val,
+                        "Calculated Physical": calculated_phys,
+                        "Resolution": res,
+                        "Offset": offset,
+                        "Difference": abs(calculated_phys - phys),
+                    }
+                )
+
         except (ValueError, TypeError) as e:
-            invalid_signals.append({
-                'Signal Name': sig_name,
-                'Error': f"Invalid data format: {str(e)}",
-                'Min (Hex)': hex_val,
-                'Resolution': res,
-                'Offset': offset
-            })
-    
+            invalid_signals.append(
+                {
+                    "Signal Name": sig_name,
+                    "Error": f"Invalid data format: {str(e)}",
+                    "Min (Hex)": hex_val,
+                    "Resolution": res,
+                    "Offset": offset,
+                }
+            )
+
     if not invalid_signals:
-        st.success("All minimum values match the formula: Physical = (Hex * Resolution) + Offset")
+        st.success(
+            "All minimum values match the formula: Physical = (Hex * Resolution) + Offset"
+        )
         return True
     else:
         with st.expander("Invalid Minimum Values", expanded=True):
-            st.error(f"Found {len(invalid_signals)} signals with incorrect minimum values")
-            
+            st.error(
+                f"Found {len(invalid_signals)} signals with incorrect minimum values"
+            )
+
             df_errors = pd.DataFrame(invalid_signals)
-            
-            if 'Error' in df_errors.columns:
+
+            if "Error" in df_errors.columns:
                 st.warning("Some values have format issues:")
-                st.dataframe(df_errors[df_errors['Error'].notna()][['Signal Name', 'Error']])
-                
-                df_errors = df_errors[df_errors['Error'].isna()]
-            
+                st.dataframe(
+                    df_errors[df_errors["Error"].notna()][["Signal Name", "Error"]]
+                )
+
+                df_errors = df_errors[df_errors["Error"].isna()]
+
             if not df_errors.empty:
                 st.dataframe(df_errors)
                 st.info("Physical value should equal (Hex * Resolution) + Offset")
-        
+
         return False
+
 
 def validate_maximum(data_frame: pd.DataFrame) -> bool:
     max_phys = dict(zip(data_frame["Sig Name"], data_frame["Max"]))
-    max_hex = dict(zip(data_frame["Sig Name"], data_frame["Max Hex"])) if "Max Hex" in data_frame.columns else {}
+    max_hex = (
+        dict(zip(data_frame["Sig Name"], data_frame["Max Hex"]))
+        if "Max Hex" in data_frame.columns
+        else {}
+    )
     resolutions = dict(zip(data_frame["Sig Name"], data_frame["Resolution"]))
     offsets = dict(zip(data_frame["Sig Name"], data_frame["Offset"]))
-    
+
     if not max_hex:
         max_hex = dict(zip(data_frame["Sig Name"], data_frame["Invalid"]))
-    
+
     invalid_signals = []
-    
+
     for sig_name in max_phys.keys():
         phys = max_phys.get(sig_name)
         hex_val = max_hex.get(sig_name)
@@ -1014,10 +1039,10 @@ def validate_maximum(data_frame: pd.DataFrame) -> bool:
 
         if pd.isna(phys) or pd.isna(hex_val) or pd.isna(res):
             continue
-            
+
         try:
             if isinstance(hex_val, str):
-                if hex_val.startswith('0x'):
+                if hex_val.startswith("0x"):
                     hex_int = int(hex_val, 16)
                 else:
                     hex_int = int(hex_val)
@@ -1027,45 +1052,56 @@ def validate_maximum(data_frame: pd.DataFrame) -> bool:
             calculated_phys = hex_int * res + offset
 
             if not math.isclose(calculated_phys, phys, rel_tol=1e-9):
-                invalid_signals.append({
-                    'Signal Name': sig_name,
-                    'Max (Physical)': phys,
-                    'Max (Hex)': hex_val,
-                    'Calculated Physical': calculated_phys,
-                    'Resolution': res,
-                    'Offset': offset,
-                    'Difference': abs(calculated_phys - phys)
-                })
-                
+                invalid_signals.append(
+                    {
+                        "Signal Name": sig_name,
+                        "Max (Physical)": phys,
+                        "Max (Hex)": hex_val,
+                        "Calculated Physical": calculated_phys,
+                        "Resolution": res,
+                        "Offset": offset,
+                        "Difference": abs(calculated_phys - phys),
+                    }
+                )
+
         except (ValueError, TypeError) as e:
-            invalid_signals.append({
-                'Signal Name': sig_name,
-                'Error': f"Invalid data format: {str(e)}",
-                'Max (Hex)': hex_val,
-                'Resolution': res,
-                'Offset': offset
-            })
-    
+            invalid_signals.append(
+                {
+                    "Signal Name": sig_name,
+                    "Error": f"Invalid data format: {str(e)}",
+                    "Max (Hex)": hex_val,
+                    "Resolution": res,
+                    "Offset": offset,
+                }
+            )
+
     if not invalid_signals:
-        st.success("All maximum values match the formula: Physical = (Hex * Resolution) + Offset")
+        st.success(
+            "All maximum values match the formula: Physical = (Hex * Resolution) + Offset"
+        )
         return True
     else:
         with st.expander("Invalid Maximum Values", expanded=True):
-            st.error(f"Found {len(invalid_signals)} signals with incorrect maximum values")
+            st.error(
+                f"Found {len(invalid_signals)} signals with incorrect maximum values"
+            )
 
             df_errors = pd.DataFrame(invalid_signals)
-            
-            if 'Error' in df_errors.columns:
+
+            if "Error" in df_errors.columns:
                 st.warning("Some values have format issues:")
-                st.dataframe(df_errors[df_errors['Error'].notna()][['Signal Name', 'Error']])
-                
-                df_errors = df_errors[df_errors['Error'].isna()]
-            
+                st.dataframe(
+                    df_errors[df_errors["Error"].notna()][["Signal Name", "Error"]]
+                )
+
+                df_errors = df_errors[df_errors["Error"].isna()]
+
             if not df_errors.empty:
                 st.dataframe(df_errors)
                 st.info("Physical value should equal (Hex * Resolution) + Offset")
-        
+
         return False
+
 
 def main():
     st.title("CAN Messages Validator (⚠️Under development⚠️)")
@@ -1079,100 +1115,100 @@ def main():
             st.success("File loaded successfully!")
 
             (
-            tab1,
-            tab2,
-            tab3,
-            tab4,
-            tab5,
-            tab6,
-            tab7,
-            tab8,
-            tab9,
-            tab10,
-            tab11,
-            tab12,
-            tab13,
-            tab14,
-            tab15,
-            tab16,
-            tab17,
-            tab18
-        ) = st.tabs(
-            [
-                "Message Names",
-                "Message Types",
-                "Messages IDs",
-                "Messages Send Type",
-                "Messages Frame Format",
-                "Messages BRS",
-                "Messages Lenght",
-                "Signal Name",
-                "Signal Value Description",
-                "Signal Description",
-                "Byte Order",
-                "Start Byte",
-                "Start Bit",
-                "Signal Send Type",
-                "Resolution",
-                "Offset",
-                "Minimum",
-                "Maximum"
-            ]
-        )
+                tab1,
+                tab2,
+                tab3,
+                tab4,
+                tab5,
+                tab6,
+                tab7,
+                tab8,
+                tab9,
+                tab10,
+                tab11,
+                tab12,
+                tab13,
+                tab14,
+                tab15,
+                tab16,
+                tab17,
+                tab18,
+            ) = st.tabs(
+                [
+                    "Message Names",
+                    "Message Types",
+                    "Messages IDs",
+                    "Messages Send Type",
+                    "Messages Frame Format",
+                    "Messages BRS",
+                    "Messages Lenght",
+                    "Signal Name",
+                    "Signal Value Description",
+                    "Signal Description",
+                    "Byte Order",
+                    "Start Byte",
+                    "Start Bit",
+                    "Signal Send Type",
+                    "Resolution",
+                    "Offset",
+                    "Minimum",
+                    "Maximum",
+                ]
+            )
 
             with tab1:
-                    validate_messages_name(processed_df)
+                validate_messages_name(processed_df)
 
             with tab2:
-                    validate_messages_type(processed_df)
+                validate_messages_type(processed_df)
 
             with tab3:
-                    validate_messages_id(processed_df)
+                validate_messages_id(processed_df)
 
             with tab4:
-                    validate_messages_send_type(processed_df)
+                validate_messages_send_type(processed_df)
 
             with tab5:
-                    validate_messages_frame_fromat(uploaded_file.name, processed_df)
+                validate_messages_frame_fromat(uploaded_file.name, processed_df)
 
             with tab6:
-                    validate_messages_BRS(uploaded_file.name, processed_df)
+                validate_messages_BRS(uploaded_file.name, processed_df)
 
             with tab7:
-                    validate_messages_length(processed_df)
+                validate_messages_length(processed_df)
 
             with tab8:
-                    validate_signal_names(processed_df)
+                validate_signal_names(processed_df)
 
             with tab9:
-                    validate_signal_value_description(processed_df)
+                validate_signal_value_description(processed_df)
 
             with tab10:
-                    validate_signal_descriprion(processed_df)
+                validate_signal_descriprion(processed_df)
 
             with tab11:
-                    validate_byte_order(processed_df)
+                validate_byte_order(processed_df)
 
             with tab12:
-                    validate_start_byte(processed_df)
+                validate_start_byte(processed_df)
 
             with tab13:
-                    validate_start_bit(processed_df)
+                validate_start_bit(processed_df)
 
             with tab14:
-                    validate_signal_send_type(processed_df)
+                validate_signal_send_type(processed_df)
 
             with tab15:
                 validate_resolution(processed_df)
-            
+
             with tab16:
                 validate_offset(processed_df)
-            
+
             with tab17:
-                    validate_minimum(processed_df)
-            
+                validate_minimum(processed_df)
+
             with tab18:
-                    validate_maximum(processed_df)
+                validate_maximum(processed_df)
 
         except Exception as e:
             st.error(f"Error processing file: {str(e)}")
