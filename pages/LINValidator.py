@@ -1150,7 +1150,7 @@ def validate_min_max_values(data_frame: pd.DataFrame) -> bool:
 
 def main():
     st.title("LIN Frames Validator (⚠️Under development⚠️)")
-    uploaded_file = st.file_uploader("Upload matrix file", type=["xlsx", "xls"])
+    uploaded_file = st.file_uploader("Upload matrix file", type=["xlsx", "xls", "xlsm"])
 
     if uploaded_file:
         try:
