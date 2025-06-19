@@ -763,18 +763,18 @@ def validate_messages_send_type(data_frame: pd.DataFrame) -> bool:
         st.success("All messages send types are correct!")
         st.info("Valid types: UF (Unconditional), EF (Event), SF (Sporadic), DF (Diagnostic)")
         return True
-
-    with st.expander("Incorrect send types", expanded=True):
-        st.error(f"Found {len(invalid_send_type.keys())} incorrect send types:")
-        st.dataframe(
-            pd.DataFrame(
-                {
-                    "Msg Name": invalid_send_type.keys(),
-                    "Incorrect type": invalid_send_type.values(),
-                }
+    if invalid_send_type:
+        with st.expander("Incorrect send types", expanded=True):
+            st.error(f"Found {len(invalid_send_type.keys())} incorrect send types:")
+            st.dataframe(
+                pd.DataFrame(
+                    {
+                        "Msg Name": invalid_send_type.keys(),
+                        "Incorrect type": invalid_send_type.values(),
+                    }
+                )
             )
-        )
-        st.info("Send Type should be: UF (Unconditional), EF (Event), SF (Sporadic), DF (Diagnostic)")
+            st.info("Send Type should be: UF (Unconditional), EF (Event), SF (Sporadic), DF (Diagnostic)")
 
     return False
 
@@ -911,18 +911,19 @@ def validate_response_error(data_frame: pd.DataFrame) -> bool:
     if not invalid_values:
         st.success("All response error values are valid!")
         return True
-
-    with st.expander("Invalid response error values", expanded=True):
-        st.info(f"Found {len(invalid_values.keys())} invalid values:")
-        st.dataframe(
-            pd.DataFrame(
-                {
-                    "Signal Name": invalid_values.keys(),
-                    "Invalid value": invalid_values.values(),
-                }
+    
+    if invalid_values:
+        with st.expander("Invalid response error values", expanded=True):
+            st.info(f"Found {len(invalid_values.keys())} invalid values:")
+            st.dataframe(
+                pd.DataFrame(
+                    {
+                        "Signal Name": invalid_values.keys(),
+                        "Invalid value": invalid_values.values(),
+                    }
+                )
             )
-        )
-        st.info("Response Error should be Yes or empty")
+            st.info("Response Error should be Yes or empty")
 
     return False
 
@@ -943,8 +944,8 @@ def validate_signal_positioning(data_frame: pd.DataFrame) -> bool:
         if byte not in range(0, 8):
             errors.append(f"Invalid start byte: {byte} (must be 0-7)")
         
-        if bit not in range(0, 8):
-            errors.append(f"Invalid start bit: {bit} (must be 0-7)")
+        if bit not in range(0, 64):
+            errors.append(f"Invalid start bit: {bit} (must be 0-63)")
             
         if not (1 <= length <= 16):
             errors.append(f"Invalid length: {length} (must be 1-16 bits)")
@@ -979,7 +980,7 @@ def validate_start_byte(data_frame: pd.DataFrame) -> bool:
     invalid_byte = {}
 
     for sig, byte in start_byte.items():
-        if byte not in range(0, 8):  # LIN frames are max 8 bytes
+        if byte not in range(0, 8):
             invalid_byte[sig] = byte
 
     if not invalid_byte:
@@ -1033,7 +1034,7 @@ def validate_signal_length(data_frame: pd.DataFrame) -> bool:
     invalid_len = {}
 
     for sig, length in sig_len.items():
-        if not (1 <= length <= 16):  # LIN signals are typically 1-16 bits
+        if not (1 <= length <= 16):
             invalid_len[sig] = length
 
     if not invalid_len:
@@ -1066,8 +1067,7 @@ def validate_initial_invalid_values(data_frame: pd.DataFrame) -> bool:
         inval_val = invalid_values.get(sig)
         
         errors = []
-        
-        # Validate initial value
+
         if pd.notna(init_val):
             try:
                 if isinstance(init_val, str):
@@ -1078,7 +1078,6 @@ def validate_initial_invalid_values(data_frame: pd.DataFrame) -> bool:
             except ValueError:
                 errors.append(f"Invalid initial value: {init_val}")
         
-        # Validate invalid value
         if pd.notna(inval_val):
             try:
                 if isinstance(inval_val, str):
