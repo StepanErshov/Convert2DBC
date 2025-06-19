@@ -8,6 +8,35 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+st.markdown("""
+<style>
+    .stPageLink a {
+        border-radius: 8px !important;
+        padding: 10px 14px !important;
+        margin: 6px 0 !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    .stPageLink a:hover {
+        background-color: #f0f0f0 !important;
+    }
+    
+    .nav-section-header {
+        font-size: 0.9rem;
+        color: #555;
+        margin-top: 15px;
+        margin-bottom: 5px;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+    
+    .logo {
+        margin-bottom: 20px;
+        text-align: center;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 xlsx2dbc = st.Page(
     "pages/Xlsx_2_DBC.py", 
     title="Xlsx 2 DBC", 
@@ -44,34 +73,6 @@ lin_validator = st.Page(
     icon="⚠️"
 )
 
-st.markdown("""
-<style>
-    .stPageLink a {
-        border-radius: 8px !important;
-        padding: 10px 14px !important;
-        margin: 6px 0 !important;
-        transition: all 0.2s ease !important;
-    }
-    
-    .stPageLink a:hover {
-        background-color: #f0f0f0 !important;
-    }
-    
-    .nav-section-header {
-        font-size: 0.9rem;
-        color: #555;
-        margin-top: 15px;
-        margin-bottom: 5px;
-        text-transform: uppercase;
-        font-weight: 600;
-    }
-    
-    .logo {
-        margin-bottom: 20px;
-        text-align: center;
-    }
-</style>
-""", unsafe_allow_html=True)
 
 pg = st.navigation(
     {
