@@ -913,8 +913,8 @@ def validate_response_error(data_frame: pd.DataFrame) -> bool:
         return True
     
     if invalid_values:
-        with st.expander("Invalid response error values", expanded=True):
-            st.info(f"Found {len(invalid_values.keys())} invalid values:")
+        with st.expander("Valid response error values", expanded=True):
+            st.info(f"Found {len(invalid_values.keys())} valid values:")
             st.dataframe(
                 pd.DataFrame(
                     {
@@ -952,7 +952,7 @@ def validate_signal_positioning(data_frame: pd.DataFrame) -> bool:
             
         if byte is not None and bit is not None and length is not None:
             end_bit = bit + length - 1
-            if end_bit > 7:
+            if end_bit > 63:
                 errors.append(f"Signal crosses byte boundary (ends at bit {end_bit})")
                 
         if errors:
