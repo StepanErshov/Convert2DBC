@@ -38,6 +38,12 @@ can_validator = st.Page(
     icon="⚠️"
 )
 
+lin_validator = st.Page(
+    "pages/LINValidator.py",
+    title="LIN Validator",
+    icon="⚠️"
+)
+
 st.markdown("""
 <style>
     .stPageLink a {
@@ -70,7 +76,7 @@ st.markdown("""
 pg = st.navigation(
     {
         "Main tools": [xlsx2dbc, routing_tables, domain2ecu, xls2ldf],
-        "Developments": [can_validator],
+        "Developments": [can_validator, lin_validator],
     }
 )
 

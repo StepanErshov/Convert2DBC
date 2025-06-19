@@ -1,1 +1,1 @@
-streamlit run ./Xlsx_2_DBC.py
+streamlit run ./main.py
