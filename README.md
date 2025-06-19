@@ -88,3 +88,7 @@ python xlsx2dbc.py --input <file_name>.xlsx --output <file_name>.dbc
  - Интеграция с CI/CD (автопроверка при коммитах).
 
  - Генерация отчетов в HTML/PDF.
+
+
+
+ ![asdsd](https://placehold.co/600x400?text=CAN+LIN+Tools)
