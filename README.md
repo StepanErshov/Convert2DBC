@@ -44,7 +44,7 @@ Working link: [Converter2dbc.app](https://convert2dbc-beta.streamlit.app/)
 - Библиотеки:
 
   ```bash
-  pip install cantools pandas openpyxl PyYAML
+  pip install cantools pandas openpyxl PyYAML ldfparser streamlit streamlit_extras lark python-lin canmatrix xlrd datetime
   ```
 
 ## Как использовать
