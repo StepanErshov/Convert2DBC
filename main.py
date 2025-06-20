@@ -64,13 +64,13 @@ xls2ldf = st.Page(
 can_validator = st.Page(
     "pages/CANValidator.py",
     title="CAN Validator",
-    icon="⚠️"
+    icon="🚧"
 )
 
 lin_validator = st.Page(
     "pages/LINValidator.py",
     title="LIN Validator",
-    icon="🚧"
+    icon="⚠️"
 )
 
 # eth_validator = st.Page(
