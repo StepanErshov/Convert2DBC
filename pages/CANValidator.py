@@ -1530,7 +1530,7 @@ def validate_maximum(data_frame: pd.DataFrame) -> bool:
 
 
 def main():
-    st.title("CAN Messages Validator (⚠️Under development⚠️)")
+    st.title("🚧CAN Messages Validator")
     uploaded_file = st.file_uploader("Upload matrix file", type=["xlsx"])
 
     if uploaded_file:

@@ -16,7 +16,7 @@ import zipfile  # для создания zip-архива
 #     initial_sidebar_state="expanded"
 # )
   
-st.title("Domain Excel Splitter")
+st.title("⚙️Domain Excel Splitter")
 st.image("https://github.com/StepanErshov/Convert2DBC/blob/main/pages/excel_split_example.png?raw=true", caption="Domain Excel → ECU Excel")
   
 uploaded_file = st.file_uploader("🏴 Upload Excel file", type=["xlsx"])

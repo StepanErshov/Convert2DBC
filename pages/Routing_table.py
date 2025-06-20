@@ -10,7 +10,7 @@ import json
 import itertools
  
 def set_page_config():
-    st.title("Routing Table")
+    st.title("🔄Routing Table")
  
 def gateway_selection():
     return st.radio(
