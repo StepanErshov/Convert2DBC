@@ -677,40 +677,89 @@ def validate_messages_name(data_frame: pd.DataFrame) -> bool:
 
 
 def validate_protected_id(data_frame: pd.DataFrame) -> bool:
-    if "Protected ID" not in data_frame.columns:
-        st.warning("Protected ID column not found - skipping validation")
+    if "Protected ID" not in data_frame.columns or "Msg ID" not in data_frame.columns:
+        st.warning("Protected ID or Msg ID column not found - skipping validation")
         return True
 
     try:
         data_frame["Protected ID"] = data_frame["Protected ID"].apply(
             lambda x: int(x, 16) if isinstance(x, str) and x.startswith("0x") else int(x)
         )
+        data_frame["Msg ID"] = data_frame["Msg ID"].apply(
+            lambda x: int(x, 16) if isinstance(x, str) and x.startswith("0x") else int(x)
+        )
     except Exception as e:
-        st.error(f"Error parsing protected IDs: {str(e)}")
+        st.error(f"Error parsing IDs: {str(e)}")
         return False
 
     prot_id = dict(zip(data_frame["Msg Name"], data_frame["Protected ID"]))
-    invalid_id = {}
+    msg_id = dict(zip(data_frame["Msg Name"], data_frame["Msg ID"]))
+    
+    invalid_range = {}
+    invalid_calculation = {}
+    invalid_parity = {}
 
-    for mes, id in prot_id.items():
-        if not (0x00 <= id <= 0xFF):  # Protected ID is 8-bit
-            invalid_id[mes] = f"0x{id:02X}"
+    for mes, pid in prot_id.items():
+        frame_id = msg_id.get(mes, -1)
+        
+        if not (0x00 <= pid <= 0xFF):
+            invalid_range[mes] = f"0x{pid:02X}"
+            continue
+            
+        if not (0x00 <= frame_id <= 0x3F):
+            continue
 
-    if not invalid_id:
-        st.success("All protected IDs are correct (0x00 to 0xFF)!")
+        pid_bits = [(pid >> i) & 1 for i in range(8)]
+        id_bits = pid_bits[:6]
+        p0_received = pid_bits[6]
+        p1_received = pid_bits[7]
+        
+        p0_calculated = id_bits[0] ^ id_bits[1] ^ id_bits[2] ^ id_bits[4]
+        p1_calculated = 1 - (id_bits[1] ^ id_bits[3] ^ id_bits[4] ^ id_bits[5])
+        
+        calculated_pid = frame_id | (p0_calculated << 6) | (p1_calculated << 7)
+        if pid != calculated_pid:
+            invalid_calculation[mes] = {
+                "Received": f"0x{pid:02X}",
+                "Expected": f"0x{calculated_pid:02X}",
+                "Frame ID": f"0x{frame_id:02X}"
+            }
+        
+        if p0_received != p0_calculated or p1_received != p1_calculated:
+            invalid_parity[mes] = {
+                "Received P0,P1": f"{p0_received}{p1_received}",
+                "Expected P0,P1": f"{p0_calculated}{p1_calculated}",
+                "Frame ID": f"0x{frame_id:02X}"
+            }
+
+    if not any([invalid_range, invalid_calculation, invalid_parity]):
+        st.success("All protected IDs are correct and parity bits are valid!")
         return True
 
-    with st.expander("Incorrect protected IDs", expanded=True):
-        st.error(f"Found {len(invalid_id.keys())} incorrect protected IDs:")
-        st.dataframe(
-            pd.DataFrame(
-                {
-                    "Msg Name": invalid_id.keys(),
-                    "Incorrect protected IDs": invalid_id.values(),
-                }
-            )
-        )
-        st.info("Protected ID must be in the range 0x00 to 0xFF")
+    if invalid_range:
+        with st.expander("Protected IDs outside valid range (0x00-0xFF)", expanded=True):
+            st.error(f"Found {len(invalid_range)} invalid IDs:")
+            st.dataframe(pd.DataFrame({
+                "Msg Name": invalid_range.keys(),
+                "Invalid ID": invalid_range.values()
+            }))
+            st.info("Protected ID must be 8-bit value (0x00-0xFF)")
+
+    if invalid_calculation:
+        with st.expander("Incorrect protected ID calculation", expanded=True):
+            st.error(f"Found {len(invalid_calculation)} calculation errors:")
+            st.dataframe(pd.DataFrame.from_dict(invalid_calculation, orient='index'))
+            st.info("Protected ID should be: Frame ID (bits 0-5) + P0 (bit 6) + P1 (bit 7)")
+
+    if invalid_parity:
+        with st.expander("Parity bits mismatch", expanded=True):
+            st.error(f"Found {len(invalid_parity)} parity errors:")
+            st.dataframe(pd.DataFrame.from_dict(invalid_parity, orient='index'))
+            st.markdown("""
+            **Parity calculation rules:**
+            - P0 = ID0 ⊕ ID1 ⊕ ID2 ⊕ ID4
+            - P1 = ¬(ID1 ⊕ ID3 ⊕ ID4 ⊕ ID5)
+            """)
 
     return False
 
