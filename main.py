@@ -73,6 +73,11 @@ lin_validator = st.Page(
     icon="⚠️"
 )
 
+# eth_validator = st.Page(
+#     "pages/ETHValidator.py",
+#     title="ETH Validator",
+#     icon="⚠️"
+# )
 
 pg = st.navigation(
     {

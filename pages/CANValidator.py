@@ -937,7 +937,7 @@ def validate_messages_length(data_frame: pd.DataFrame) -> bool:
     for mes, length in msg_len.items():
         if length == 8 and msg_frame_format[mes] != "StandardCAN":
             invalid_len[mes] = {"Len": length, "Frame": msg_frame_format[mes]}
-        if length == 64 and msg_frame_format[mes] != "StandardCAN_FD":
+        if (length == 8 or length == 64) and msg_frame_format[mes] != "StandardCAN_FD":
             invalid_len[mes] = {"Len": length, "Frame": msg_frame_format[mes]}
 
     if not invalid_len:
@@ -1078,7 +1078,7 @@ def validate_signal_descriprion(data_frame: pd.DataFrame) -> bool:
             continue
 
         str_val = str(val)
-        if not re.fullmatch(r"^[A-Za-z0-9 ,.;]+$", str_val):
+        if not re.fullmatch(r'^[A-Za-z0-9 ,.;:+_-/<>%()°~]+$', str_val):
             invalid_val[mes] = str_val
 
     if not invalid_nan and not invalid_val:
