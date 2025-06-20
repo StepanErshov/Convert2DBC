@@ -23,6 +23,7 @@ from streamlit.runtime.uploaded_file_manager import UploadedFile
 import os
 import datetime
 
+
 class ValueDescriptionParser:
     @staticmethod
     def parse(desc_str: str) -> Optional[Dict[int, str]]:
@@ -175,7 +176,7 @@ class ExcelToLDFConverter:
             self.ldf._slaves[slave.name] = slave
 
         self.ldf._master = self.master
-        self.ldf._channel = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        self.ldf._channel = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     def _load_excel_data(self) -> pd.DataFrame:
         df = pd.read_excel(
@@ -244,27 +245,27 @@ class ExcelToLDFConverter:
         new_df = new_df.dropna(subset=["Signal Name"])
 
         return new_df, df_schedule
-    
+
     def get_file_info(self, file_name: str):
         file_start = "ATOM_CAN_Matrix_"
         file_start1 = "ATOM_CANFD_Matrix_"
         file_start2 = "ATOM_LIN_Matrix_"
         file_name_only = os.path.splitext(os.path.basename(file_name))[0]
-        
+
         if file_name_only.startswith(file_start1):
             protocol = "CANFD"
-            remaining = file_name_only[len(file_start1):]
+            remaining = file_name_only[len(file_start1) :]
         elif file_name_only.startswith(file_start2):
             protocol = "LIN"
-            remaining = file_name_only[len(file_start2):]
+            remaining = file_name_only[len(file_start2) :]
         elif file_name_only.startswith(file_start):
             protocol = "CAN"
-            remaining = file_name_only[len(file_start):]
+            remaining = file_name_only[len(file_start) :]
         else:
             return None
-        
-        parts = remaining.split('_')
-        
+
+        parts = remaining.split("_")
+
         domain_name = parts.pop(0)
 
         version_string = parts.pop(0)
@@ -273,26 +274,26 @@ class ExcelToLDFConverter:
         else:
             version = version_string
 
-        version_parts = version.split('.')
+        version_parts = version.split(".")
         if len(version_parts) != 3:
             return None
 
-        if '-' in version_parts[2]:
-            version_num, file_date = version_parts[2].split('-')
+        if "-" in version_parts[2]:
+            version_num, file_date = version_parts[2].split("-")
             version_parts[2] = version_num
         else:
-            if parts and re.match(r'^\d{8}$', parts[0]):
+            if parts and re.match(r"^\d{8}$", parts[0]):
                 file_date = parts.pop(0)
             else:
                 file_date = ""
-        
-        version = '.'.join(version_parts)
-        
+
+        version = ".".join(version_parts)
+
         device_name = "_".join(parts) if parts else ""
 
         if device_name.startswith("internal"):
-            device_name = device_name[8:].lstrip('_')
-        
+            device_name = device_name[8:].lstrip("_")
+
         return {
             "version": version,
             "date": file_date,
@@ -322,7 +323,7 @@ class ExcelToLDFConverter:
                 name=str(row["Signal Name"]),
                 width=int(row["Bit Length"]),
                 init_value=int(row["Init value"], 16),
-                comment=comment
+                comment=comment,
             )
 
             converters = []

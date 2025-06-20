@@ -821,10 +821,12 @@ class ExcelToDBCConverter:
             "Data Type\n数据类型",
             "Msg Length (Byte)\n报文长度",
         ]
-        
+
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
-            print(f"Ошибка: В файле отсутствуют обязательные столбцы: {missing_columns}")
+            print(
+                f"Ошибка: В файле отсутствуют обязательные столбцы: {missing_columns}"
+            )
             return False
         return True
 
@@ -852,21 +854,29 @@ class ExcelToDBCConverter:
                 start_byte = row["Start Byte\n起始字节"]
                 start_bit = row["Start Bit\n起始位"]
                 bit_length = row["Bit Length (Bit)\n信号长度"]
-                
+
                 if start_byte >= msg_length:
-                    print(f"Ошибка: Сигнал {row['Signal Name\n信号名称']} выходит за пределы сообщения (байт {start_byte} >= длины сообщения {msg_length})")
+                    print(
+                        f"Ошибка: Сигнал {row['Signal Name\n信号名称']} выходит за пределы сообщения (байт {start_byte} >= длины сообщения {msg_length})"
+                    )
                     valid = False
-                    
+
                 if start_bit >= 8:
-                    print(f"Ошибка: Некорректный стартовый бит {start_bit} в сигнале {row['Signal Name\n信号名称']}")
+                    print(
+                        f"Ошибка: Некорректный стартовый бит {start_bit} в сигнале {row['Signal Name\n信号名称']}"
+                    )
                     valid = False
-                    
+
                 if bit_length <= 0:
-                    print(f"Ошибка: Некорректная длина {bit_length} в сигнале {row['Signal Name\n信号名称']}")
+                    print(
+                        f"Ошибка: Некорректная длина {bit_length} в сигнале {row['Signal Name\n信号名称']}"
+                    )
                     valid = False
-                    
+
                 if start_byte * 8 + start_bit + bit_length > msg_length * 8:
-                    print(f"Ошибка: Сигнал {row['Signal Name\n信号名称']} выходит за пределы сообщения")
+                    print(
+                        f"Ошибка: Сигнал {row['Signal Name\n信号名称']} выходит за пределы сообщения"
+                    )
                     valid = False
         return valid
 
@@ -875,13 +885,17 @@ class ExcelToDBCConverter:
         for _, row in df.iterrows():
             data_type = str(row["Data Type\n数据类型"])
             bit_length = row["Bit Length (Bit)\n信号长度"]
-            
+
             if "Float" in data_type and bit_length not in [32, 64]:
-                print(f"Ошибка: Некорректная длина {bit_length} для типа float в сигнале {row['Signal Name\n信号名称']}")
+                print(
+                    f"Ошибка: Некорректная длина {bit_length} для типа float в сигнале {row['Signal Name\n信号名称']}"
+                )
                 valid = False
-                
+
             if "Signed" in data_type and bit_length < 2:
-                print(f"Ошибка: Некорректная длина {bit_length} для signed типа в сигнале {row['Signal Name\n信号名称']}")
+                print(
+                    f"Ошибка: Некорректная длина {bit_length} для signed типа в сигнале {row['Signal Name\n信号名称']}"
+                )
                 valid = False
         return valid
 
@@ -890,20 +904,20 @@ class ExcelToDBCConverter:
         for msg_id, group in df.groupby("Msg ID\n报文标识符"):
             senders = []
             receivers = []
-            
+
             for bus_user in self.bus_users:
                 if bus_user in group.columns:
                     if "S" in group[bus_user].values:
                         senders.append(bus_user)
                     if "R" in group[bus_user].values:
                         receivers.append(bus_user)
-            
+
             if not senders:
                 print(f"Предупреждение: Сообщение {msg_id} не имеет отправителей")
-                
+
             if not receivers:
                 print(f"Предупреждение: Сообщение {msg_id} не имеет получателей")
-                
+
         return valid
 
     def _validate_initial_values(self, df: pd.DataFrame) -> bool:
@@ -913,7 +927,9 @@ class ExcelToDBCConverter:
                 try:
                     int(row["Initial Value (Hex)\n初始值"], 16)
                 except ValueError:
-                    print(f"Ошибка: Некорректное начальное значение {row['Initial Value (Hex)\n初始值']} для сигнала {row['Signal Name\n信号名称']}")
+                    print(
+                        f"Ошибка: Некорректное начальное значение {row['Initial Value (Hex)\n初始值']} для сигнала {row['Signal Name\n信号名称']}"
+                    )
                     valid = False
         return valid
 
@@ -925,7 +941,7 @@ class ExcelToDBCConverter:
                 keep_default_na=True,
                 engine="openpyxl",
             )
-            
+
             checks = [
                 self._validate_excel_structure(df),
                 self._validate_message_ids(df),
@@ -934,7 +950,7 @@ class ExcelToDBCConverter:
                 self._validate_senders_receivers(df),
                 self._validate_initial_values(df),
             ]
-            
+
             return all(checks)
         except Exception as e:
             print(f"Ошибка при проверке входных данных: {str(e)}")

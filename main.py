@@ -5,10 +5,11 @@ st.set_page_config(
     page_title="CAN/LIN Tools Suite",
     page_icon="🚗",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-st.markdown("""
+st.markdown(
+    """
 <style>
     .stPageLink a {
         border-radius: 8px !important;
@@ -35,43 +36,21 @@ st.markdown("""
         text-align: center;
     }
 </style>
-""", unsafe_allow_html=True)
-
-xlsx2dbc = st.Page(
-    "pages/Xlsx_2_DBC.py", 
-    title="Xlsx 2 DBC", 
-    icon="📊"
+""",
+    unsafe_allow_html=True,
 )
 
-routing_tables = st.Page(
-    "pages/Routing_table.py",
-    title="Routing Tables",
-    icon="🔄"
-)
+xlsx2dbc = st.Page("pages/Xlsx_2_DBC.py", title="Xlsx 2 DBC", icon="📊")
 
-domain2ecu = st.Page(
-    "pages/Domain_2_ECU.py",
-    title="Domain 2 ECU",
-    icon="⚙️"
-)
+routing_tables = st.Page("pages/Routing_table.py", title="Routing Tables", icon="🔄")
 
-xls2ldf = st.Page(
-    "pages/Xls_2_LDF.py",
-    title="Xls 2 LDF",
-    icon="📈"
-)
+domain2ecu = st.Page("pages/Domain_2_ECU.py", title="Domain 2 ECU", icon="⚙️")
 
-can_validator = st.Page(
-    "pages/CANValidator.py",
-    title="CAN Validator",
-    icon="🚧"
-)
+xls2ldf = st.Page("pages/Xls_2_LDF.py", title="Xls 2 LDF", icon="📈")
 
-lin_validator = st.Page(
-    "pages/LINValidator.py",
-    title="LIN Validator",
-    icon="⚠️"
-)
+can_validator = st.Page("pages/CANValidator.py", title="CAN Validator", icon="🚧")
+
+lin_validator = st.Page("pages/LINValidator.py", title="LIN Validator", icon="⚠️")
 
 # eth_validator = st.Page(
 #     "pages/ETHValidator.py",
@@ -90,14 +69,16 @@ pg.run()
 
 if st.session_state.get("current_page") == "home":
     st.title("Welcome in CAN/LIN Tools Suite")
-    st.markdown("""
+    st.markdown(
+        """
     ### Available tools:
     - **Xlsx 2 DBC** - Excel to DBC format converter
     - **Routing tables** - Routing tables management
     - **Domain 2 ECU** - Domain and ECU mapping
     - **Xls 2 LDF** - Excel to LIN description format converter
     - **CAN Validator** - CAN matrix validator (under development)
-    """)
-        
+    """
+    )
+
     st.divider()
     st.info("Choose tool from navigation menu on the left")

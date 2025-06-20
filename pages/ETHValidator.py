@@ -87,7 +87,7 @@ import math
 #         if any(val in ["S", "R"] for val in df[col].dropna().unique())
 #         and col != "Unit\n单位"
 #     ]
-    
+
 #     print(bus_users)
 
 #     senders = []
@@ -142,13 +142,10 @@ import math
 #     new_df["Unit"] = new_df["Unit"].str.replace("℃", "degC", regex=False)
 
 #     new_df = new_df.dropna(subset=["Sig Name"])
-    
+
 #     new_df["Is Signed"] = False
 
 #     return bus_users
-
-
-
 
 
 # pprint.pprint(create_correct_df(load_xlsx("C:\\projects\\Convert2DBC\\ATOM_Ethernet_Matrix_V4.1.3_20250220.xlsx")))
