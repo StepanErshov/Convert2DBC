@@ -1078,7 +1078,7 @@ def validate_signal_descriprion(data_frame: pd.DataFrame) -> bool:
             continue
 
         str_val = str(val)
-        if not re.fullmatch(r'^[A-Za-z0-9 ,.;:+_-/<>%()°~]+$', str_val):
+        if not re.fullmatch(r'^[A-Za-z0-9 ,.;:+_/-<>%()°~-]+$', str_val):
             invalid_val[mes] = str_val
 
     if not invalid_nan and not invalid_val:
