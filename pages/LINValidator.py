@@ -724,27 +724,76 @@ def validate_messages_id(data_frame: pd.DataFrame) -> bool:
         return False
 
     msg_id = dict(zip(data_frame["Msg Name"], data_frame["Msg ID"]))
-    invalid_id = {}
-
+    msg_type = dict(zip(data_frame["Msg Name"], data_frame["Send Type"]))
+    
+    invalid_range = {}
+    invalid_unconditional = {}
+    invalid_diagnostic = {}
+    forbidden_ids = {}
+    
     for mes, id in msg_id.items():
-        if not (0x00 <= id <= 0x3F):  # LIN IDs are 6-bit (0-63)
-            invalid_id[mes] = f"0x{id:02X}"
 
-    if not invalid_id:
-        st.success("All message IDs are correct (0x00 to 0x3F)!")
+        if not (0x00 <= id <= 0x3D):
+            invalid_range[mes] = f"0x{id:02X}"
+        
+        if id in [0x3E, 0x3F]:
+            forbidden_ids[mes] = f"0x{id:02X}"
+        
+        frame_type = msg_type.get(mes, "")
+        
+        if frame_type == "UF" and not (0x00 <= id <= 0x3B):
+            invalid_unconditional[mes] = f"0x{id:02X}"
+        
+        if frame_type == "DF" and not (0x3C <= id <= 0x3D):
+            invalid_diagnostic[mes] = f"0x{id:02X}"
+
+    if not any([invalid_range, invalid_unconditional, invalid_diagnostic, forbidden_ids]):
+        st.success("All message IDs are correct!")
         return True
 
-    with st.expander("Incorrect LIN IDs", expanded=True):
-        st.error(f"Found {len(invalid_id.keys())} incorrect IDs:")
-        st.dataframe(
-            pd.DataFrame(
-                {
-                    "Msg Name": invalid_id.keys(),
-                    "Incorrect IDs": invalid_id.values(),
-                }
+    if invalid_range:
+        with st.expander("IDs outside valid range (0x00-0x3D)", expanded=True):
+            st.error(f"Found {len(invalid_range)} IDs outside valid range:")
+            st.dataframe(
+                pd.DataFrame({
+                    "Msg Name": invalid_range.keys(),
+                    "Invalid ID": invalid_range.values()
+                })
             )
-        )
-        st.info("LIN ID must be in the range 0x00 to 0x3F (0-63 decimal)")
+            st.info("LIN IDs must be between 0x00 and 0x3D (0-61 decimal)")
+
+    if forbidden_ids:
+        with st.expander("Forbidden IDs (0x3E-0x3F)", expanded=True):
+            st.error(f"Found {len(forbidden_ids)} forbidden IDs:")
+            st.dataframe(
+                pd.DataFrame({
+                    "Msg Name": forbidden_ids.keys(),
+                    "Forbidden ID": forbidden_ids.values()
+                })
+            )
+            st.info("IDs 0x3E and 0x3F (62-63) are reserved and cannot be used")
+
+    if invalid_unconditional:
+        with st.expander("Unconditional Frames with invalid IDs", expanded=True):
+            st.error(f"Found {len(invalid_unconditional)} Unconditional Frames with incorrect IDs:")
+            st.dataframe(
+                pd.DataFrame({
+                    "Msg Name": invalid_unconditional.keys(),
+                    "Invalid ID": invalid_unconditional.values()
+                })
+            )
+            st.info("Unconditional Frames must use IDs 0x00-0x3B (0-59)")
+
+    if invalid_diagnostic:
+        with st.expander("Diagnostic Frames with invalid IDs", expanded=True):
+            st.error(f"Found {len(invalid_diagnostic)} Diagnostic Frames with incorrect IDs:")
+            st.dataframe(
+                pd.DataFrame({
+                    "Msg Name": invalid_diagnostic.keys(),
+                    "Invalid ID": invalid_diagnostic.values()
+                })
+            )
+            st.info("Diagnostic Frames must use IDs 0x3C (Master Request) or 0x3D (Slave Response)")
 
     return False
 
