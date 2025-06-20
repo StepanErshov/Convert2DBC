@@ -70,7 +70,7 @@ can_validator = st.Page(
 lin_validator = st.Page(
     "pages/LINValidator.py",
     title="LIN Validator",
-    icon="⚠️"
+    icon="🚧"
 )
 
 # eth_validator = st.Page(
@@ -81,8 +81,8 @@ lin_validator = st.Page(
 
 pg = st.navigation(
     {
-        "Main tools": [xlsx2dbc, routing_tables, domain2ecu, xls2ldf],
-        "Developments": [can_validator, lin_validator],
+        "Main tools": [xlsx2dbc, routing_tables, domain2ecu, xls2ldf, can_validator],
+        "Developments": [lin_validator],
     }
 )
 
