@@ -344,7 +344,7 @@ def export_validation_errors_to_excel(data_frame: pd.DataFrame, file_path: str) 
         for mes, length in msg_len.items():
             if length == 8 and msg_frame_format[mes] != "StandardCAN":
                 invalid_len[mes] = {"Length": length, "Frame Format": msg_frame_format[mes]}
-            if length == 64 and msg_frame_format[mes] != "StandardCAN_FD":
+            if (length == 64 or length == 8) and msg_frame_format[mes] != "StandardCAN_FD":
                 invalid_len[mes] = {"Length": length, "Frame Format": msg_frame_format[mes]}
         
         if invalid_len:
@@ -411,7 +411,7 @@ def export_validation_errors_to_excel(data_frame: pd.DataFrame, file_path: str) 
             invalid_nan[mes] = "NaN"
             continue
         str_val = str(val)
-        if not re.fullmatch(r"^[A-Za-z0-9 ,.;]+$", str_val):
+        if not re.fullmatch(r'^[A-Za-z0-9 ,.;:+_/-<>%()°~-]+$', str_val):
             invalid_val[mes] = str_val
     
     if invalid_val:
