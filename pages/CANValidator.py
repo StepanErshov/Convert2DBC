@@ -998,34 +998,40 @@ def validate_messages_length(data_frame: pd.DataFrame) -> bool:
     invalid_len = {}
 
     for mes, length in msg_len.items():
-        if length == 8 and msg_frame_format[mes] != "StandardCAN":
-            invalid_len[mes] = {"Len": length, "Frame": msg_frame_format[mes]}
-        if (length == 8 or length == 64) and msg_frame_format[mes] != "StandardCAN_FD":
-            invalid_len[mes] = {"Len": length, "Frame": msg_frame_format[mes]}
+        frame_format = msg_frame_format[mes] 
+
+        if frame_format == "StandardCAN" and length != 8:
+            invalid_len[mes] = {"Len": length, "Frame": frame_format}
+
+        elif frame_format == "StandardCAN_FD" and length not in (8, 64):
+            invalid_len[mes] = {"Len": length, "Frame": frame_format}
+
+        elif frame_format not in ("StandardCAN", "StandardCAN_FD"):
+            invalid_len[mes] = {"Len": length, "Frame": frame_format}
 
     if not invalid_len:
-        st.success("All mesages lenght are correct!")
+        st.success("All messages length are correct!")
         return True
 
     if invalid_len:
-        with st.expander("Incorrect messages lenght for frame format", expanded=True):
-            st.error(f"Found {len(invalid_len.keys())} incorrect lenght")
+        with st.expander("Incorrect messages length for frame format", expanded=True):
+            st.error(f"Found {len(invalid_len.keys())} incorrect length")
             df_data = []
             for msg_name, values in invalid_len.items():
                 df_data.append(
                     {
                         "Msg Name": msg_name,
-                        "Incorrect BRS": values["Len"],
+                        "Incorrect Length": values["Len"],
                         "Frame Format": values["Frame"],
                     }
                 )
             st.dataframe(pd.DataFrame(df_data))
             st.info(
-                "If Frame Format is StandardCAN, then Msg Length (Byte) must be '8', otherwise if StandardCAN_FD then '64'"
+                "For StandardCAN, message length must be 8 bytes. "
+                "For StandardCAN_FD, message length must be 8 or 64 bytes."
             )
 
     return False
-
 
 def validate_signal_names(data_frame: pd.DataFrame) -> bool:
     invalid_names = []
