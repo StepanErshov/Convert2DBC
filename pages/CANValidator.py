@@ -991,45 +991,59 @@ def validate_messages_BRS(
     return False
 
 
-def validate_messages_length(data_frame: pd.DataFrame) -> bool:
-    msg_len = dict(zip(data_frame["Msg Name"], data_frame["Length"]))
-    msg_frame_format = dict(zip(data_frame["Msg Name"], data_frame["Frame Format"]))
-
+def validate_messages_length(file: Union[str, UploadedFile], data_frame: pd.DataFrame) -> bool:
+    # Получаем информацию о протоколе
+    file_info = get_file_info(file_name=file)
+    protocol = file_info.get("protocol", "").upper()
+    
+    msg_len = dict(zip(data_frame["Msg Name"], data_frame["Msg Length"]))
     invalid_len = {}
 
-    for mes, length in msg_len.items():
-        frame_format = msg_frame_format[mes] 
+    if "CANFD" in protocol:  # Для CAN FD
+        msg_frame_format = dict(zip(data_frame["Msg Name"], data_frame["Frame Format"]))
+        
+        for mes, length in msg_len.items():
+            frame_format = msg_frame_format[mes] 
 
-        if frame_format == "StandardCAN" and length != 8:
-            invalid_len[mes] = {"Len": length, "Frame": frame_format}
-
-        elif frame_format == "StandardCAN_FD" and length not in (8, 64):
-            invalid_len[mes] = {"Len": length, "Frame": frame_format}
-
-        elif frame_format not in ("StandardCAN", "StandardCAN_FD"):
-            invalid_len[mes] = {"Len": length, "Frame": frame_format}
+            if frame_format == "StandardCAN_FD":
+                if length not in (8, 64):
+                    invalid_len[mes] = {"Len": length, "Frame": frame_format}
+            elif frame_format == "StandardCAN":
+                if length != 8:
+                    invalid_len[mes] = {"Len": length, "Frame": frame_format}
+            else:
+                invalid_len[mes] = {"Len": length, "Frame": frame_format}
+                
+    else:  # Для обычного CAN
+        for mes, length in msg_len.items():
+            if length != 8:
+                invalid_len[mes] = {"Len": length}
 
     if not invalid_len:
         st.success("All messages length are correct!")
         return True
 
     if invalid_len:
-        with st.expander("Incorrect messages length for frame format", expanded=True):
+        with st.expander("Incorrect messages length", expanded=True):
             st.error(f"Found {len(invalid_len.keys())} incorrect length")
             df_data = []
+            
             for msg_name, values in invalid_len.items():
-                df_data.append(
-                    {
-                        "Msg Name": msg_name,
-                        "Incorrect Length": values["Len"],
-                        "Frame Format": values["Frame"],
-                    }
-                )
+                record = {"Msg Name": msg_name, "Incorrect Length": values["Len"]}
+                if "CANFD" in protocol:  # Добавляем Frame Format только для CAN FD
+                    record["Frame Format"] = values.get("Frame", "N/A")
+                df_data.append(record)
+            
             st.dataframe(pd.DataFrame(df_data))
-            st.info(
-                "For StandardCAN, message length must be 8 bytes. "
-                "For StandardCAN_FD, message length must be 8 or 64 bytes."
-            )
+            
+            if "CANFD" in protocol:
+                st.info("""
+                For CAN FD messages:
+                - StandardCAN_FD: length must be 8 or 64 bytes
+                - StandardCAN: length must be 8 bytes
+                """)
+            else:
+                st.info("For CAN, message length must be 8 bytes.")
 
     return False
 
@@ -1081,33 +1095,37 @@ def validate_signal_names(data_frame: pd.DataFrame) -> bool:
 
     return False
 
-
 def validate_signal_value_description(data_frame: pd.DataFrame) -> bool:
     sig_desc = dict(zip(data_frame["Sig Name"], data_frame["Signal Value Description"]))
-
+    
     invalid_val = {}
     invalid_nan = {}
 
-    for mes, val in sig_desc.items():
+    pattern = re.compile(
+        r'^(?:'
+        r'0x[0-9A-Fa-f]+(:|~0x[0-9A-Fa-f]+:)\s*'  
+        r'[<>A-Za-z0-9 _+\-.,/%°()&;]+'           
+        r'(?:\s*[+&]\s*[<>A-Za-z0-9 _+\-.,/%°()]+)*' 
+        r'(?:\n|$)'                               
+        r')+$'
+    )
+
+    for sig_name, val in sig_desc.items():
         if pd.isna(val):
-            invalid_nan[mes] = "NaN"
+            invalid_nan[sig_name] = "NaN"
             continue
 
-        str_val = str(val)
-        if not re.fullmatch(r"^[A-Za-z0-9 ,.;]+$", str_val):
-            invalid_val[mes] = str_val
+        str_val = str(val).strip()
+        if not pattern.fullmatch(str_val):
+            invalid_val[sig_name] = str_val
 
     if not invalid_nan and not invalid_val:
         st.success("All Signal Values Description are correct!")
         return True
 
     if invalid_val:
-        with st.expander(
-            "Incorrect signal value description (not needed characters)", expanded=True
-        ):
-            st.error(
-                f"Found {len(invalid_val)} value descriptions with wrong characters"
-            )
+        with st.expander("Incorrect signal value description (invalid format)", expanded=True):
+            st.error(f"Found {len(invalid_val)} value descriptions with wrong format")
             st.dataframe(
                 pd.DataFrame(
                     {
@@ -1117,7 +1135,15 @@ def validate_signal_value_description(data_frame: pd.DataFrame) -> bool:
                 )
             )
             st.info(
-                "Allowed characters: A-Z, a-z, 0-9, spaces, commas, periods, and semicolons"
+                "Allowed format examples:\n"
+                "0x0: No Error\n"
+                "0x0: <50% Alarm 0x1: <10% Alarm\n"
+                "0x0~0x3: Reserved\n"
+                "0x0: ACC_Off 0x1: ACC_Active\n"
+                "0x0: 0% 0x1: 10%\n"
+                "0x0: -8 level 0x1: -7 level\n"
+                "0x0: Level 1(low) 0x1: Level 2(medium)\n"
+                "0x0: AC Plug&DC Plug Connected"
             )
 
     if invalid_nan:
@@ -1133,7 +1159,6 @@ def validate_signal_value_description(data_frame: pd.DataFrame) -> bool:
             )
 
     return False if (invalid_nan or invalid_val) else True
-
 
 def validate_signal_descriprion(data_frame: pd.DataFrame) -> bool:
     sig_desc = dict(zip(data_frame["Sig Name"], data_frame["Description"]))
@@ -1684,7 +1709,7 @@ def main():
                 validate_messages_BRS(uploaded_file.name, processed_df)
 
             with tab7:
-                validate_messages_length(processed_df)
+                validate_messages_length(uploaded_file.name, processed_df)
 
             with tab8:
                 validate_signal_names(processed_df)
