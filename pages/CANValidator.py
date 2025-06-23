@@ -992,14 +992,13 @@ def validate_messages_BRS(
 
 
 def validate_messages_length(file: Union[str, UploadedFile], data_frame: pd.DataFrame) -> bool:
-    # Получаем информацию о протоколе
     file_info = get_file_info(file_name=file)
     protocol = file_info.get("protocol", "").upper()
     
     msg_len = dict(zip(data_frame["Msg Name"], data_frame["Msg Length"]))
     invalid_len = {}
 
-    if "CANFD" in protocol:  # Для CAN FD
+    if "CANFD" in protocol:
         msg_frame_format = dict(zip(data_frame["Msg Name"], data_frame["Frame Format"]))
         
         for mes, length in msg_len.items():
@@ -1014,7 +1013,7 @@ def validate_messages_length(file: Union[str, UploadedFile], data_frame: pd.Data
             else:
                 invalid_len[mes] = {"Len": length, "Frame": frame_format}
                 
-    else:  # Для обычного CAN
+    else:
         for mes, length in msg_len.items():
             if length != 8:
                 invalid_len[mes] = {"Len": length}
@@ -1030,7 +1029,7 @@ def validate_messages_length(file: Union[str, UploadedFile], data_frame: pd.Data
             
             for msg_name, values in invalid_len.items():
                 record = {"Msg Name": msg_name, "Incorrect Length": values["Len"]}
-                if "CANFD" in protocol:  # Добавляем Frame Format только для CAN FD
+                if "CANFD" in protocol:
                     record["Frame Format"] = values.get("Frame", "N/A")
                 df_data.append(record)
             
