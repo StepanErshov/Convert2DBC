@@ -6,8 +6,7 @@ import pprint
 import streamlit as st
 import os
 import math
-
-# st.set_page_config(page_title="CAN Validator", page_icon="⚠️", layout="wide")
+from datetime import datetime
 
 st.markdown(
     """
@@ -1577,11 +1576,11 @@ def main():
         try:
             df = load_xlsx(uploaded_file)
             processed_df = create_correct_df(df)
-
+            file_attr = get_file_info(uploaded_file.name)
             st.success("File loaded successfully!")
 
             if st.button("Export All Validation Errors to Excel"):
-                output_path = "validation_errors.xlsx"
+                output_path = f"{file_attr["protocol"]}_{file_attr["domain_name"]}_{file_attr["date"]}_validation_errors_{datetime.now().strftime("%Y%m%d")}.xlsx"
                 if export_validation_errors_to_excel(processed_df, output_path):
                     st.success(f"Validation errors exported to {output_path}")
                     with open(output_path, "rb") as f:
