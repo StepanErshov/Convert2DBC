@@ -11,3 +11,4 @@ xlrd==2.0.1
 datetime==5.5
 streamlit_extras==0.6.0
 lark==1.2.2
+streamlit-keycloak==1.1.1
