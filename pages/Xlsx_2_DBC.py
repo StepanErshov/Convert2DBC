@@ -4,6 +4,28 @@ from xlsx2dbc import ExcelToDBCConverter
 import os
 from datetime import datetime
 import re
+from sqlalchemy import text
+
+conn = st.connection(
+    'can_db',
+    type='sql',
+    dialect='sqlite',
+    database='can_database.db'
+)
+
+with conn.session as s:
+    s.execute(text("""
+        CREATE TABLE IF NOT EXISTS converted_files (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            original_filename TEXT NOT NULL,
+            dbc_filename TEXT NOT NULL,
+            version TEXT NOT NULL,
+            conversion_date TEXT NOT NULL,
+            file_size INTEGER NOT NULL,
+            user_id TEXT NOT NULL
+        )
+    """))
+    s.commit()
 
 # st.set_page_config(
 #     page_title="Excel to DBC Converter",
@@ -308,6 +330,32 @@ def main():
                                 unsafe_allow_html=True,
                             )
 
+                            file_size = os.path.getsize(custom_filename)
+                            current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            
+                            with conn.session as s:
+                                s.execute(
+                                    text("""
+                                        INSERT INTO converted_files (
+                                            original_filename, 
+                                            dbc_filename, 
+                                            version, 
+                                            conversion_date, 
+                                            file_size,
+                                            user_id
+                                        ) VALUES (:original, :dbc, :version, :date, :size, :user)
+                                    """),
+                                    {
+                                        "original": uploaded_file.name,
+                                        "dbc": custom_filename,
+                                        "version": new_version,
+                                        "date": current_date,
+                                        "size": file_size,
+                                        "user": st.session_state.get('keycloak', {}).get('username', 'unknown')
+                                    }
+                                )
+                                s.commit()
+
                             with open(custom_filename, "rb") as f:
                                 bytes_data = f.read()
                                 st.download_button(
@@ -317,23 +365,29 @@ def main():
                                     mime="application/octet-stream",
                                     key="download_button",
                                 )
-                        else:
-                            st.error("Conversion failed. Please check the input data.")
 
-                            try:
-                                errors = getattr(converter, "last_errors", [])
-                                if errors:
-                                    display_errors(errors)
-                            except:
-                                pass
-
+                        st.subheader("Conversion History")
+                        with conn.session as s:
+                            result = s.execute(text("""
+                                SELECT original_filename, dbc_filename, version, conversion_date, file_size
+                                FROM converted_files
+                                ORDER BY conversion_date DESC
+                                LIMIT 10
+                            """))
+                            history_df = pd.DataFrame(result.fetchall(), columns=result.keys())
+                        
+                        if not history_df.empty:
+                            history_df['file_size'] = history_df['file_size'].apply(
+                                lambda x: f"{x/1024:.2f} KB" if x < 1024*1024 else f"{x/(1024*1024):.2f} MB"
+                            )
+                            st.dataframe(history_df)
+                        
                     except Exception as e:
-                        st.error(f"An error occurred during conversion: {str(e)}")
+                        st.error(f"An error occurred: {str(e)}")
+                        st.error(f"Full error: {repr(e)}")
 
-                        import traceback
 
-                        st.code(traceback.format_exc())
-
+conn.session.close()
 
 if __name__ == "__main__":
     main()
