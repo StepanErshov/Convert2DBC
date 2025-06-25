@@ -1,7 +1,7 @@
 *.xlsx
 *.xls
 *.dbc
-*.toml
+*.streamlit
 .DS_Store
 Thumbs.db
 __pycache__/
