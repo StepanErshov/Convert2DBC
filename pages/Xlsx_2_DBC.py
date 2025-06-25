@@ -10,7 +10,7 @@ conn = st.connection(
     'can_db',
     type='sql',
     dialect='sqlite',
-    database='can_database.db'
+    database='/tmp/can_database.db'
 )
 
 with conn.session as s:
