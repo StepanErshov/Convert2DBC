@@ -1567,6 +1567,49 @@ def validate_maximum(data_frame: pd.DataFrame) -> bool:
 
         return False
 
+# def validate_cycle_times(data_frame):
+#     errors = []
+    
+#     for idx, row in data_frame.iterrows():
+#         cycle_time = row['Cycle Type']
+#         send_type = row['Send Type']
+        
+#         if send_type in ['Cycle', 'CE', 'CA']:
+#             if pd.isna(cycle_time):
+#                 errors.append({
+#                     'Тип ошибки': 'Отсутствует время цикла',
+#                     'Сообщение': row['Msg Name'],
+#                     'Тип отправки': send_type,
+#                     'Значение': 'Пусто'
+#                 })
+#             elif not isinstance(cycle_time, (int, float)) or cycle_time < 0:
+#                 errors.append({
+#                     'Тип ошибки': 'Некорректное время',
+#                     'Сообщение': row['Msg Name'],
+#                     'Тип отправки': send_type,
+#                     'Значение': cycle_time
+#                 })
+                
+#         elif send_type in ['Event', 'IfActive']:
+#             if not pd.isna(cycle_time):
+#                 errors.append({
+#                     'Тип ошибки': 'Лишнее время цикла',
+#                     'Сообщение': row['Msg Name'],
+#                     'Тип отправки': send_type,
+#                     'Значение': cycle_time
+#                 })
+    
+#     if not errors:
+#         st.success("Проверка времени цикла выполнена успешно!")
+#         return True
+    
+#     error_df = pd.DataFrame(errors)
+#     with st.expander("Ошибки во времени цикла", expanded=True):
+#         st.error(f"Найдено {len(error_df)} ошибок")
+#         st.dataframe(error_df)
+#         st.info("Для Cycle/CE/CA - обязательно, для Event/IfActive - должно быть пусто")
+    
+#     return False
 
 def main():
     st.title("🚧CAN Messages Validator")
@@ -1612,6 +1655,7 @@ def main():
                 tab16,
                 tab17,
                 tab18,
+                # tab19
             ) = st.tabs(
                 [
                     "Message Names",
@@ -1632,6 +1676,7 @@ def main():
                     "Offset",
                     "Minimum",
                     "Maximum",
+                    # "ECU Consistency"
                 ]
             )
 
@@ -1688,6 +1733,9 @@ def main():
 
             with tab18:
                 validate_maximum(processed_df)
+
+            # with tab19:
+            #     validate_cycle_times(processed_df)
 
         except Exception as e:
             st.error(f"Error processing file: {str(e)}")
