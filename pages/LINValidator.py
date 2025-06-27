@@ -985,13 +985,17 @@ def validate_checksum_mode(data_frame: pd.DataFrame) -> bool:
         return False
 
     checksum_modes = dict(zip(data_frame["Msg Name"], data_frame["Checksum Mode"]))
+    send_type = dict(zip(data_frame["Msg Name"], data_frame["Send Type"]))
     invalid_modes = {}
-
+    invalid_send_modes = {}
     for mes, mode in checksum_modes.items():
         if str(mode).strip().lower() not in ["classic", "enhanced"]:
             invalid_modes[mes] = mode
+        
+        if send_type[mes] == "DF" and mode != "classic":
+            invalid_send_modes[mes] = mode
 
-    if not invalid_modes:
+    if not invalid_modes and not invalid_send_modes:
         st.success("All checksum modes are correct!")
         return True
 
@@ -1006,6 +1010,17 @@ def validate_checksum_mode(data_frame: pd.DataFrame) -> bool:
             )
         )
         st.info("Checksum mode should be 'Classic' or 'Enhanced' for LIN")
+    
+    with st.expander("Incorrect checksum for send type", expanded=True):
+        st.error(f"Found {len(invalid_send_modes.keys())} incorrect checksum for send type:")
+        st.dataframe(
+            pd.DataFrame(
+                {
+                    "Msg Name": invalid_send_modes.keys(),
+                    "Incorrect mode": invalid_send_modes.values()
+                }
+            )
+        )
 
     return False
 
