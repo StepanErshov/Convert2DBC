@@ -1,14 +1,14 @@
-import streamlit as st  # для браузера
-import pandas as pd  # для работы с табличными данными
-from openpyxl import load_workbook  # для загрузки Excel-книг
-from copy import copy  # для копирования стилей ячеек
-from io import BytesIO  # для работы с буфером в памяти
-from datetime import datetime  # для получения текущей даты
+import streamlit as st
+import pandas as pd
+from openpyxl import load_workbook
+from copy import copy
+from io import BytesIO
+from datetime import datetime
 from openpyxl.utils import (
     get_column_letter,
-)  # для получения буквенных индексов столбцов
-from openpyxl.styles import Alignment  # для задания выравнивания текста
-import zipfile  # для создания zip-архива
+)
+from openpyxl.styles import Alignment
+import zipfile
 
 # Настройка страницы Streamlit
 # st.set_page_config(
@@ -47,7 +47,6 @@ def process_matrix_sheet(wb, ecu_col_indexes):
     wb.remove(ws_matrix)
     new_matrix_ws = wb.create_sheet("Matrix")
 
-    # Устанавливаем кастомную ширину столбцов
     custom_widths = {
         1: 15,
         2: 7.5,
@@ -98,7 +97,6 @@ def process_matrix_sheet(wb, ecu_col_indexes):
     }
     set_column_widths(new_matrix_ws, custom_widths)
 
-    # Копируем заголовки с форматами
     for col_idx, cell in enumerate(ws_matrix[1], 1):
         new_cell = new_matrix_ws.cell(row=1, column=col_idx, value=cell.value)
         new_cell.font = copy(cell.font)
@@ -113,7 +111,6 @@ def process_matrix_sheet(wb, ecu_col_indexes):
                 wrap_text=True,
             )
 
-    # Копируем строки, соответствующие ECU
     dest_row = 2
     for row in ws_matrix.iter_rows(min_row=2, max_row=ws_matrix.max_row):
         if any(
@@ -123,12 +120,10 @@ def process_matrix_sheet(wb, ecu_col_indexes):
             copy_row_with_style(row, new_matrix_ws, dest_row)
             dest_row += 1
 
-    # Настройка переноса в столбце AA
     for row in new_matrix_ws.iter_rows(min_row=2, max_row=new_matrix_ws.max_row):
         aa_cell = row[26]
         aa_cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
 
-    # Группировка строк по полю A и I
     row_idx = 2
     while row_idx <= new_matrix_ws.max_row:
         a_val = new_matrix_ws.cell(row=row_idx, column=1).value
@@ -150,7 +145,6 @@ def process_matrix_sheet(wb, ecu_col_indexes):
         else:
             row_idx += 1
 
-    # Обрезаем лист
     max_rows, max_cols = 5000, 50
     if new_matrix_ws.max_row > max_rows:
         new_matrix_ws.delete_rows(max_rows + 1, new_matrix_ws.max_row - max_rows)
@@ -201,7 +195,6 @@ def identify_bus_users(df):
 
 if uploaded_file:
     try:
-        # Read the entire Matrix sheet to identify bus users
         df = pd.read_excel(uploaded_file, sheet_name="Matrix")
         bus_users = identify_bus_users(df)
 
@@ -211,19 +204,16 @@ if uploaded_file:
             )
             st.stop()
 
-        # Create a container for checkboxes
         st.write("Select ECUs to export:")
-        col1, col2, col3 = st.columns(3)  # Create 3 columns for better layout
+        col1, col2, col3 = st.columns(3)
         selected_ecus = []
 
-        # Place checkboxes in columns
         for i, ecu in enumerate(bus_users):
             col = col1 if i % 3 == 0 else (col2 if i % 3 == 1 else col3)
             if col.checkbox(ecu, key=f"ecu_{ecu}"):
                 selected_ecus.append(ecu)
 
         if selected_ecus and st.button("🖊 Export selected ECUs"):
-            # Create a zip file in memory
             zip_buffer = BytesIO()
             with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
                 for selected_ecu in selected_ecus:
@@ -231,7 +221,6 @@ if uploaded_file:
                     ecu_list = [selected_ecu]
                     ecu_col_indexes = {ecu: df.columns.get_loc(ecu) for ecu in ecu_list}
 
-                    # Create a new workbook for each ECU
                     wb = load_workbook(uploaded_file)
                     process_matrix_sheet(wb, ecu_col_indexes)
                     history_found = process_history_sheet(wb, ecu_col_indexes)
@@ -240,16 +229,13 @@ if uploaded_file:
                             f"🕱 'History' sheet not found in ECU {selected_ecu}."
                         )
 
-                    # Save workbook to BytesIO
                     excel_buffer = BytesIO()
                     filename = f"ATOM_CAN_MATRIX_{selected_ecu}_{date_str}.xlsx"
                     wb.save(excel_buffer)
                     excel_buffer.seek(0)
 
-                    # Add the Excel file to the zip
                     zip_file.writestr(filename, excel_buffer.getvalue())
 
-            # Prepare zip file for download
             zip_buffer.seek(0)
             zip_filename = f"ECU_Export_{datetime.now().strftime('%d%m%Y_%H%M%S')}.zip"
 
