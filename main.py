@@ -51,7 +51,7 @@ xls2ldf = st.Page("pages/Xls_2_LDF.py", title="Xls 2 LDF", icon="📈")
 
 can_validator = st.Page("pages/CANValidator.py", title="CAN Validator", icon="🚧")
 
-lin_validator = st.Page("pages/LINValidator.py", title="LIN Validator", icon="⚠️")
+lin_validator = st.Page("pages/LINValidator.py", title="LIN Validator", icon="🚀")
 
 # eth_validator = st.Page(
 #     "pages/ETHValidator.py",
@@ -61,8 +61,8 @@ lin_validator = st.Page("pages/LINValidator.py", title="LIN Validator", icon="�
 
 pg = st.navigation(
     {
-        "Main tools": [xlsx2dbc, routing_tables, domain2ecu, xls2ldf, can_validator],
-        "Developments": [lin_validator],
+        "Main tools": [xlsx2dbc, routing_tables, domain2ecu, xls2ldf, can_validator, lin_validator],
+        "Developments": [],
     }
 )
 
