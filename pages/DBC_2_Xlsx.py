@@ -6,6 +6,9 @@ import tempfile
 from datetime import datetime
 import re
 from sqlalchemy import text
+import io
+import sys
+from contextlib import redirect_stdout
 
 conn = st.connection(
     "can_db",
@@ -352,21 +355,16 @@ def main():
 
                         converter = DbcRead(temp_path)
                         
-                        # Захватываем вывод print из функции convert
-                        import io
-                        import sys
-                        from contextlib import redirect_stdout
-                        
                         f = io.StringIO()
                         with redirect_stdout(f):
                             success = converter.convert(custom_filename)
                         
                         output = f.getvalue()
-                        st.code(f"Conversion output:\n{output}")
+                        # st.code(f"Conversion output:\n{output}")
                         
-                        st.info(f"Conversion result: {success}")
-                        st.info(f"Current directory: {os.getcwd()}")
-                        st.info(f"File exists: {os.path.exists(custom_filename)}")
+                        # st.info(f"Conversion result: {success}")
+                        # st.info(f"Current directory: {os.getcwd()}")
+                        # st.info(f"File exists: {os.path.exists(custom_filename)}")
 
                         if success:
                             st.markdown(
@@ -374,7 +372,6 @@ def main():
                                 unsafe_allow_html=True,
                             )
 
-                            # Проверяем, что файл действительно создался
                             if os.path.exists(custom_filename):
                                 file_size = os.path.getsize(custom_filename)
                                 current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -406,7 +403,6 @@ def main():
                                     )
                                     s.commit()
 
-                                # Читаем файл и создаем кнопку скачивания
                                 try:
                                     with open(custom_filename, "rb") as f:
                                         bytes_data = f.read()

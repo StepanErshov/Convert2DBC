@@ -1,12 +1,14 @@
 import cantools
 import cantools.database
 import pandas as pd
-from openpyxl import load_workbook
-from typing import List, Dict
-from collections import OrderedDict
+import traceback
 import argparse
 import pprint
 import os
+from openpyxl import load_workbook
+from typing import List, Dict
+from collections import OrderedDict
+
 
 
 class DbcRead:
@@ -123,7 +125,6 @@ class DbcRead:
             lib, ecu = self.CreateDB()
             ecu_nodes = [node.name for node in ecu]
 
-            # Ищем файл test.xlsx в разных возможных местах
             test_xlsx_path = None
             possible_paths = [
                 "test.xlsx",
@@ -139,7 +140,6 @@ class DbcRead:
             
             if not test_xlsx_path:
                 print("Warning: test.xlsx not found, using default columns")
-                # Используем стандартные колонки если test.xlsx не найден
                 base_columns = [
                     "Message Name", "Message Type", "Message ID", "Send Type", "Cycle Time",
                     "Protocol", "CAN FD", "Message Length", "Signal Name", "Signal Description",
@@ -273,7 +273,6 @@ class DbcRead:
                 output_path, sheet_name=test_sheet_name, index=False, engine="openpyxl"
             )
 
-            # Копируем форматирование только если test.xlsx найден
             if test_xlsx_path:
                 self.copy_format(test_xlsx_path, output_path)
 
@@ -282,7 +281,6 @@ class DbcRead:
         except Exception as e:
             print(f"Error during conversion: {str(e)}")
             print(f"Error type: {type(e)}")
-            import traceback
             print(f"Full traceback: {traceback.format_exc()}")
             return False
 
