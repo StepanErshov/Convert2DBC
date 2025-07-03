@@ -351,7 +351,18 @@ def main():
                             f.write(uploaded_file.getbuffer())
 
                         converter = DbcRead(temp_path)
-                        success = converter.convert(custom_filename)
+                        
+                        # Захватываем вывод print из функции convert
+                        import io
+                        import sys
+                        from contextlib import redirect_stdout
+                        
+                        f = io.StringIO()
+                        with redirect_stdout(f):
+                            success = converter.convert(custom_filename)
+                        
+                        output = f.getvalue()
+                        st.code(f"Conversion output:\n{output}")
                         
                         st.info(f"Conversion result: {success}")
                         st.info(f"Current directory: {os.getcwd()}")

@@ -116,6 +116,10 @@ class DbcRead:
     def convert(self, output_path: str = "output.xlsx") -> bool:
         """Main method convert (message row + signal rows, with style copy)"""
         try:
+            print(f"Starting conversion to: {output_path}")
+            print(f"Current working directory: {os.getcwd()}")
+            print(f"DBC file path: {self.dbc_path}")
+            print(f"DBC file exists: {os.path.exists(self.dbc_path)}")
             lib, ecu = self.CreateDB()
             ecu_nodes = [node.name for node in ecu]
 
@@ -277,6 +281,9 @@ class DbcRead:
             return True
         except Exception as e:
             print(f"Error during conversion: {str(e)}")
+            print(f"Error type: {type(e)}")
+            import traceback
+            print(f"Full traceback: {traceback.format_exc()}")
             return False
 
 
