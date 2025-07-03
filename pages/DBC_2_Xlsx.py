@@ -11,7 +11,7 @@ conn = st.connection(
     "can_db",
     type="sql",
     dialect="sqlite",
-    database=f"{tempfile.gettempdir()}/can_database.db",
+    database="can_database.db",
 )
 
 with conn.session as s:
@@ -219,17 +219,17 @@ def main():
                         "Message ID": f"0x{int(msg_data['Msg_id']):X}",
                         "Message Length": msg_data["Msg_length"],
                         "Cycle Time": msg_data["Cycle_time"],
-                        "Signal Name": "",
-                        "Signal Description": "",
-                        "Start Byte": "",
-                        "Start Bit": "",
-                        "Bit Length": "",
-                        "Data Type": "",
-                        "Resolution": "",
-                        "Offset": "",
-                        "Min Value": "",
-                        "Max Value": "",
-                        "Unit": "",
+                        "Signal Name": None,
+                        "Signal Description": None,
+                        "Start Byte": None,
+                        "Start Bit": None,
+                        "Bit Length": None,
+                        "Data Type": None,
+                        "Resolution": None,
+                        "Offset": None,
+                        "Min Value": None,
+                        "Max Value": None,
+                        "Unit": None,
                     }
 
                     for ecu_node in ecu_nodes[:3]:
@@ -241,12 +241,12 @@ def main():
 
                     for signal in msg_data["Signals"][:3]:
                         sig_row = {
-                            "Message Name": "",
-                            "Message ID": "",
-                            "Message Length": "",
-                            "Cycle Time": "",
+                            "Message Name": None,
+                            "Message ID": None,
+                            "Message Length": None,
+                            "Cycle Time": None,
                             "Signal Name": signal["Sgn_name"],
-                            "Signal Description": signal["Comment"] or "",
+                            "Signal Description": signal["Comment"] or None,
                             "Start Byte": signal["Start_bit"] // 8,
                             "Start Bit": signal["Start_bit"],
                             "Bit Length": signal["Sgn_lenght"],
@@ -257,7 +257,7 @@ def main():
                             "Offset": signal["Offset"],
                             "Min Value": signal["Minimum"],
                             "Max Value": signal["Maximum"],
-                            "Unit": signal["Unit"] or "",
+                            "Unit": signal["Unit"] or None,
                         }
 
                         for ecu_node in ecu_nodes[:3]:
@@ -271,7 +271,13 @@ def main():
                         preview_data.append(sig_row)
 
                 preview_df = pd.DataFrame(preview_data)
-
+                
+                for col in preview_df.columns:
+                    if col in ["Message Length", "Cycle Time", "Start Byte", "Start Bit", "Bit Length", "Resolution", "Offset", "Min Value", "Max Value"]:
+                        preview_df[col] = pd.to_numeric(preview_df[col], errors='coerce')
+                    else:
+                        preview_df[col] = preview_df[col].fillna("")
+                
                 st.subheader("Data Preview")
                 st.dataframe(
                     preview_df.style.set_properties(
