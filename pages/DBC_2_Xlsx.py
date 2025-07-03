@@ -352,6 +352,10 @@ def main():
 
                         converter = DbcRead(temp_path)
                         success = converter.convert(custom_filename)
+                        
+                        st.info(f"Conversion result: {success}")
+                        st.info(f"Current directory: {os.getcwd()}")
+                        st.info(f"File exists: {os.path.exists(custom_filename)}")
 
                         if success:
                             st.markdown(
@@ -359,47 +363,60 @@ def main():
                                 unsafe_allow_html=True,
                             )
 
-                            file_size = os.path.getsize(custom_filename)
-                            current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            # Проверяем, что файл действительно создался
+                            if os.path.exists(custom_filename):
+                                file_size = os.path.getsize(custom_filename)
+                                current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-                            with conn.session as s:
-                                s.execute(
-                                    text(
+                                with conn.session as s:
+                                    s.execute(
+                                        text(
+                                            """
+                                            INSERT INTO dbc_converted_files (
+                                                original_filename, 
+                                                xlsx_filename, 
+                                                version, 
+                                                conversion_date, 
+                                                file_size,
+                                                user_id
+                                            ) VALUES (:original, :xlsx, :version, :date, :size, :user)
                                         """
-                                        INSERT INTO dbc_converted_files (
-                                            original_filename, 
-                                            xlsx_filename, 
-                                            version, 
-                                            conversion_date, 
-                                            file_size,
-                                            user_id
-                                        ) VALUES (:original, :xlsx, :version, :date, :size, :user)
-                                    """
-                                    ),
-                                    {
-                                        "original": uploaded_file.name,
-                                        "xlsx": custom_filename,
-                                        "version": new_version,
-                                        "date": current_date,
-                                        "size": file_size,
-                                        "user": st.session_state.get(
-                                            "keycloak", {}
-                                        ).get("username", "unknown"),
-                                    },
-                                )
-                                s.commit()
+                                        ),
+                                        {
+                                            "original": uploaded_file.name,
+                                            "xlsx": custom_filename,
+                                            "version": new_version,
+                                            "date": current_date,
+                                            "size": file_size,
+                                            "user": st.session_state.get(
+                                                "keycloak", {}
+                                            ).get("username", "unknown"),
+                                        },
+                                    )
+                                    s.commit()
 
-                            with open(custom_filename, "rb") as f:
-                                bytes_data = f.read()
-                                st.download_button(
-                                    label="Download Excel File",
-                                    data=bytes_data,
-                                    file_name=custom_filename,
-                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                    key="download_button",
-                                )
+                                # Читаем файл и создаем кнопку скачивания
+                                try:
+                                    with open(custom_filename, "rb") as f:
+                                        bytes_data = f.read()
+                                    
+                                    if bytes_data:
+                                        st.download_button(
+                                            label="Download Excel File",
+                                            data=bytes_data,
+                                            file_name=custom_filename,
+                                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                            key="download_button",
+                                        )
+                                    else:
+                                        st.error("Generated file is empty")
+                                except Exception as read_error:
+                                    st.error(f"Error reading generated file: {str(read_error)}")
+                            else:
+                                st.error(f"File was not created: {custom_filename}")
 
-                        os.remove(temp_path)
+                        if os.path.exists(temp_path):
+                            os.remove(temp_path)
 
                         st.subheader("Conversion History")
                         with conn.session as s:

@@ -6,6 +6,7 @@ from typing import List, Dict
 from collections import OrderedDict
 import argparse
 import pprint
+import os
 
 
 class DbcRead:
@@ -118,10 +119,37 @@ class DbcRead:
             lib, ecu = self.CreateDB()
             ecu_nodes = [node.name for node in ecu]
 
-            test_xl = pd.ExcelFile("test.xlsx")
-            test_sheet_name = test_xl.sheet_names[0]
-            test_df = pd.read_excel(test_xl, sheet_name=test_sheet_name)
-            base_columns = list(map(str, test_df.columns))
+            # Ищем файл test.xlsx в разных возможных местах
+            test_xlsx_path = None
+            possible_paths = [
+                "test.xlsx",
+                "pages/test.xlsx",
+                os.path.join(os.path.dirname(__file__), "test.xlsx"),
+                os.path.join(os.path.dirname(__file__), "pages", "test.xlsx")
+            ]
+            
+            for path in possible_paths:
+                if os.path.exists(path):
+                    test_xlsx_path = path
+                    break
+            
+            if not test_xlsx_path:
+                print("Warning: test.xlsx not found, using default columns")
+                # Используем стандартные колонки если test.xlsx не найден
+                base_columns = [
+                    "Message Name", "Message Type", "Message ID", "Send Type", "Cycle Time",
+                    "Protocol", "CAN FD", "Message Length", "Signal Name", "Signal Description",
+                    "Byte Order", "Start Byte", "Start Bit", "Send Type", "Bit Length",
+                    "Data Type", "Resolution", "Offset", "Min Value", "Max Value",
+                    "Min Raw", "Max Raw", "Initial Value", "Invalid Value", "Error Value",
+                    "Unit", "Value Description", "GenMsgCycleTimeFast", "GenMsgNrOfRepetition", "GenMsgDelayTime"
+                ]
+                test_sheet_name = "Sheet1"
+            else:
+                test_xl = pd.ExcelFile(test_xlsx_path)
+                test_sheet_name = test_xl.sheet_names[0]
+                test_df = pd.read_excel(test_xl, sheet_name=test_sheet_name)
+                base_columns = list(map(str, test_df.columns))
 
             non_ecu_columns = []
             for col in base_columns:
@@ -241,7 +269,9 @@ class DbcRead:
                 output_path, sheet_name=test_sheet_name, index=False, engine="openpyxl"
             )
 
-            self.copy_format("test.xlsx", output_path)
+            # Копируем форматирование только если test.xlsx найден
+            if test_xlsx_path:
+                self.copy_format(test_xlsx_path, output_path)
 
             print(f"Excel file successfully created: {output_path}")
             return True
