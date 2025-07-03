@@ -1,6 +1,8 @@
 import streamlit as st
 from streamlit_extras.app_logo import add_logo
 
+# import dbc2xlsx
+
 
 st.set_page_config(
     page_title="CAN/LIN Tools Suite",
@@ -43,6 +45,8 @@ st.markdown(
 
 xlsx2dbc = st.Page("pages/Xlsx_2_DBC.py", title="Xlsx 2 DBC", icon="📊")
 
+dbc2xlsx = st.Page("pages/DBC_2_Xlsx.py", title="DBC 2 Xlsx", icon="📊")
+
 routing_tables = st.Page("pages/Routing_table.py", title="Routing Tables", icon="🔄")
 
 domain2ecu = st.Page("pages/Domain_2_ECU.py", title="Domain 2 ECU", icon="⚙️")
@@ -61,8 +65,15 @@ lin_validator = st.Page("pages/LINValidator.py", title="LIN Validator", icon="�
 
 pg = st.navigation(
     {
-        "Main tools": [xlsx2dbc, routing_tables, domain2ecu, xls2ldf, can_validator, lin_validator],
-        "Developments": [],
+        "Main tools": [
+            xlsx2dbc,
+            routing_tables,
+            domain2ecu,
+            xls2ldf,
+            can_validator,
+            lin_validator,
+        ],
+        "Developments": [dbc2xlsx],
     }
 )
 

@@ -1,7 +1,7 @@
 import cantools
 import cantools.database
 import pandas as pd
-import openpyxl
+from openpyxl import load_workbook
 from typing import List, Dict
 from collections import OrderedDict
 import argparse
@@ -45,6 +45,7 @@ class DbcRead:
                 "Protocol": message.protocol,
                 "Send_type": message.send_type,
                 "Senders": message.senders,
+                "Recievers": message.receivers,
                 "GenMsgCycleTimeFast": gen_msg_cycle_time_fast,
                 "GenMsgNrOfRepetition": gen_msg_nr_rep,
                 "GenMsgDelayTime": gen_msg_delay,
@@ -88,41 +89,84 @@ class DbcRead:
             return "\n".join(lines)
         return str(choices)
 
+    def copy_format(self, source_path: str, target_path: str) -> None:
+        """Copy styles from source.xlsx in target.xlsx."""
+        try:
+            source_wb = load_workbook(source_path)
+            target_wb = load_workbook(target_path)
+
+            source_sheet_name = source_wb.sheetnames[0]
+            target_sheet_name = target_wb.sheetnames[0]
+
+            source_sheet = source_wb[source_sheet_name]
+            target_sheet = target_wb[target_sheet_name]
+
+            for row in source_sheet.iter_rows():
+                for cell in row:
+                    target_cell = target_sheet[cell.coordinate]
+
+                    target_cell.number_format = cell.number_format
+
+            target_wb.save(target_path)
+            print(f"Formating successfully copy from {source_path} in {target_path}")
+        except Exception as e:
+            print(f"Error durring copy formats: {str(e)}")
+
     def convert(self, output_path: str = "output.xlsx") -> bool:
-        """Main method convert"""
+        """Main method convert (message row + signal rows, with style copy)"""
         try:
             lib, ecu = self.CreateDB()
-
-            combined_data = []
-
             ecu_nodes = [node.name for node in ecu]
 
+            test_xl = pd.ExcelFile("test.xlsx")
+            test_sheet_name = test_xl.sheet_names[0]
+            test_df = pd.read_excel(test_xl, sheet_name=test_sheet_name)
+            base_columns = list(map(str, test_df.columns))
+
+            non_ecu_columns = []
+            for col in base_columns:
+                if col not in ecu_nodes:
+                    non_ecu_columns.append(col)
+            columns = non_ecu_columns + ecu_nodes
+
+            rows = []
             for msg_name, msg_data in lib.items():
-                frame_format = (
-                    "StandardCAN" if msg_data["Protocol"] == "CAN" else "StandardCAN_FD"
-                )
-                msg_type = (
+                msg_row = {col: "" for col in columns}
+                msg_row[columns[0]] = msg_name
+                msg_row[columns[1]] = (
                     "NM"
                     if str(msg_name).startswith("NM_")
                     else "Diag" if str(msg_name).startswith("Diag") else "Normal"
                 )
+                msg_row[columns[2]] = f"0x{int(msg_data['Msg_id']):X}"
+                msg_row[columns[3]] = msg_data.get("Send_type", "")
+                msg_row[columns[4]] = msg_data["Cycle_time"]
+                msg_row[columns[5]] = (
+                    "StandardCAN" if msg_data["Protocol"] == "CAN" else "StandardCAN_FD"
+                )
+                msg_row[columns[6]] = (
+                    str(1) if msg_row[columns[5]] == "StandardCAN_FD" else str(0)
+                )
+                msg_row[columns[7]] = msg_data["Msg_length"]
 
-                ecu_status = {node: "" for node in ecu_nodes}
-                if msg_data["Senders"]:
-                    for sender in msg_data["Senders"]:
-                        if sender in ecu_status:
-                            ecu_status[sender] = "S"
+                for ecu_node in ecu_nodes:
+                    if ecu_node in columns:
+                        msg_row[ecu_node] = (
+                            "S" if ecu_node in msg_data["Senders"] else "R"
+                        )
+                rows.append(msg_row)
 
                 for signal in msg_data["Signals"]:
-                    signal_ecu_status = ecu_status.copy()
-                    if signal["Receivers"]:
-                        for receiver in signal["Receivers"]:
-                            if (
-                                receiver in signal_ecu_status
-                                and signal_ecu_status[receiver] != "S"
-                            ):
-                                signal_ecu_status[receiver] = "R"
-
+                    sig_row = {col: "" for col in columns}
+                    sig_row[columns[8]] = signal["Sgn_name"]
+                    sig_row[columns[9]] = signal["Comment"]
+                    sig_row[columns[10]] = (
+                        "Motorola MSB"
+                        if signal["Byte_oreder"] == "big_endian"
+                        else "Intel"
+                    )
+                    sig_row[columns[11]] = signal["Start_bit"] // 8
+                    sig_row[columns[12]] = signal["Start_bit"]
                     send_map = {
                         0: "Cyclic",
                         1: "OnChange",
@@ -143,85 +187,61 @@ class DbcRead:
                         if hasattr(signal["Sgn_Send_Type"], "value")
                         else None
                     )
-                    signal_send_type = send_map.get(gen_sig_send_type, "Unknown")
-
-                    min_hex = (
+                    sig_row[columns[13]] = send_map.get(gen_sig_send_type, "")
+                    sig_row[columns[14]] = signal["Sgn_lenght"]
+                    sig_row[columns[15]] = (
+                        "Unsigned" if signal["Is_signed"] == False else "Signed"
+                    )
+                    sig_row[columns[16]] = signal["Factor"]
+                    sig_row[columns[17]] = signal["Offset"]
+                    sig_row[columns[18]] = signal["Minimum"]
+                    sig_row[columns[19]] = signal["Maximum"]
+                    sig_row[columns[20]] = (
                         f"0x{int((signal['Minimum'] - signal['Offset']) / signal['Factor']):X}"
                         if signal["Factor"] != 0
                         else "0x0"
                     )
-                    max_hex = (
+                    sig_row[columns[21]] = (
                         f"0x{int((signal['Maximum'] - signal['Offset']) / signal['Factor']):X}"
                         if signal["Factor"] != 0
                         else "0x0"
                     )
+                    sig_row[columns[22]] = (
+                        f"0x{int(signal['Initinal']):X}"
+                        if pd.notna(signal["Initinal"])
+                        else ""
+                    )
+                    sig_row[columns[23]] = (
+                        f"0x{int(signal['Invalid']):X}"
+                        if pd.notna(signal["Invalid"])
+                        else ""
+                    )
+                    sig_row[columns[24]] = "0x0"
+                    sig_row[columns[25]] = signal["Unit"]
 
-                    value_desc = self._format_value_description(
+                    sig_row[columns[26]] = self._format_value_description(
                         signal["Value_description"]
                     )
-
-                    row = {
-                        "Msg Name\n报文名称": msg_name,
-                        "Msg Type\n报文类型": msg_type,
-                        "Msg ID\n报文标识符": msg_data["Msg_id"],
-                        "Msg Send Type\n报文发送类型": msg_data.get("Send_type", ""),
-                        "Msg Cycle Time (ms)\n报文周期时间": msg_data["Cycle_time"],
-                        "Frame Format\n帧格式": frame_format,
-                        "BRS\n传输速率切换标识位": (
-                            1 if frame_format == "StandardCAN_FD" else 0
-                        ),
-                        "Msg Length (Byte)\n报文长度": msg_data["Msg_length"],
-                        "Signal Name\n信号名称": signal["Sgn_name"],
-                        "Signal Description\n信号描述": signal["Comment"],
-                        "Byte Order\n排列格式(Intel/Motorola)": (
-                            "Motorola MSB"
-                            if signal["Byte_oreder"] == "big_endian"
-                            else "Intel"
-                        ),
-                        "Start Byte\n起始字节": signal["Start_bit"] // 8,
-                        "Start Bit\n起始位": signal["Start_bit"],
-                        "Signal Send Type\n信号发送类型": signal_send_type,
-                        "Bit Length (Bit)\n信号长度": signal["Sgn_lenght"],
-                        "Data Type\n数据类型": (
-                            "Unsigned" if signal["Is_signed"] == False else "Signed"
-                        ),
-                        "Resolution\n精度": signal["Factor"],
-                        "Offset\n偏移量": signal["Offset"],
-                        "Signal Min. Value (phys)\n物理最小值": signal["Minimum"],
-                        "Signal Max. Value (phys)\n物理最大值": signal["Maximum"],
-                        "Signal Min. Value (Hex)\n总线最小值": min_hex,
-                        "Signal Max. Value (Hex)\n总线最大值": max_hex,
-                        "Initial Value (Hex)\n初始值": (
-                            f"0x{int(signal['Initinal']):X}"
-                            if pd.notna(signal["Initinal"])
-                            else ""
-                        ),
-                        "Invalid Value(Hex)\n无效值": (
-                            f"0x{int(signal['Invalid']):X}"
-                            if pd.notna(signal["Invalid"])
-                            else ""
-                        ),
-                        "Inactive Value (Hex)\n非使能值": "0x0",
-                        "Unit\n单位": signal["Unit"],
-                        "Signal Value Description\n信号值描述": value_desc,
-                        "Msg Cycle Time Fast(ms)\n报文发送的快速周期": msg_data[
-                            "GenMsgCycleTimeFast"
-                        ],
-                        "Msg Nr. Of Reption\n报文快速发送的次数": msg_data[
-                            "GenMsgNrOfRepetition"
-                        ],
-                        "Msg Delay Time(ms)\n报文延时时间": msg_data["GenMsgDelayTime"],
-                        "Remarks\n备注": "",
-                    }
+                    sig_row[columns[27]] = msg_data["GenMsgCycleTimeFast"]
+                    sig_row[columns[28]] = msg_data["GenMsgNrOfRepetition"]
+                    sig_row[columns[29]] = msg_data["GenMsgDelayTime"]
 
                     for ecu_node in ecu_nodes:
-                        row[ecu_node] = signal_ecu_status.get(ecu_node, "")
+                        if ecu_node in columns:
+                            if ecu_node in msg_data["Senders"]:
+                                sig_row[ecu_node] = "S"
+                            elif ecu_node in signal["Receivers"]:
+                                sig_row[ecu_node] = "R"
+                            else:
+                                sig_row[ecu_node] = ""
+                    rows.append(sig_row)
 
-                    combined_data.append(row)
+            df = pd.DataFrame(rows, columns=columns)
+            df.to_excel(
+                output_path, sheet_name=test_sheet_name, index=False, engine="openpyxl"
+            )
 
-            df = pd.DataFrame(combined_data)
-
-            df.to_excel(output_path, index=False, engine="openpyxl")
+            self.copy_format("test.xlsx", output_path)
 
             print(f"Excel file successfully created: {output_path}")
             return True
