@@ -1,6 +1,6 @@
 # Convert2DBC - Automotive Protocol Converter Tool
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://convert2dbc-beta.streamlit.app/)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://cmdtool.streamlit.app/)
 
 A comprehensive web-based tool for converting between automotive communication protocols (CAN DBC, Excel, LIN LDF) with validation and analysis capabilities.
 
@@ -68,7 +68,7 @@ Convert2DBC is a powerful Streamlit application designed for automotive engineer
 
 ### Cloud Deployment
 The application is also available as a hosted service:
-- **Streamlit Cloud**: [https://convert2dbc-beta.streamlit.app/](https://convert2dbc-beta.streamlit.app/)
+- **Streamlit Cloud**: [https://cmdtool.streamlit.app/](https://cmdtool.streamlit.app/)
 
 ## 📖 Usage Guide
 
@@ -267,9 +267,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/your-username/Convert2DBC/issues)
-- **Documentation**: [Wiki](https://github.com/your-username/Convert2DBC/wiki)
-- **Email**: support@convert2dbc.com
+- **Issues**: [GitHub Issues](https://github.com/StepanErshov/Convert2DBC/issues)
+- **Documentation**: [Wiki](https://github.com/StepanErshov/Convert2DBC/wiki)
+- **Email**: support@cmdtool.com
 
 ## 🔄 Version History
 
