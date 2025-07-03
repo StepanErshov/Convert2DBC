@@ -58,18 +58,25 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
 def load_xlsx(file_path: str) -> Union[pd.DataFrame, Dict]:
     try:
         if isinstance(file_path, str) or isinstance(file_path, UploadedFile):
             data_frame = pd.read_excel(
-                file_path, sheet_name="ETH.Matrix", keep_default_na=True, engine="openpyxl"
+                file_path,
+                sheet_name="ETH.Matrix",
+                keep_default_na=True,
+                engine="openpyxl",
             )
             return data_frame
         elif isinstance(file_path, List):
             finally_df = {}
             for file in file_path:
                 data_frame = pd.read_excel(
-                    file, sheet_name="ETH.Matrix", keep_default_na=True, engine="openpyxl"
+                    file,
+                    sheet_name="ETH.Matrix",
+                    keep_default_na=True,
+                    engine="openpyxl",
                 )
                 if isinstance(file, UploadedFile):
                     finally_df[file.name] = data_frame
@@ -103,8 +110,7 @@ def create_correct_df(df: pd.DataFrame) -> pd.DataFrame:
         "Min": df["Min Value"],
         "Max": df["Max Value"],
         "Coding val": df["CodingValue-Enum"],
-        "Comments": df["Comments"]
-
+        "Comments": df["Comments"],
     }
 
     new_df = pd.DataFrame(new_df_data)
@@ -115,14 +121,11 @@ def create_correct_df(df: pd.DataFrame) -> pd.DataFrame:
 
     new_df = new_df.dropna(subset=["DBC Sig name"])
 
-    agg_funcs = {
-        col: 'first' for col in new_df.columns
-    }
+    agg_funcs = {col: "first" for col in new_df.columns}
 
     new_df = new_df.groupby("Rename Topic", as_index=False).agg(agg_funcs)
 
     return new_df
-
 
 
 def main():
@@ -137,7 +140,7 @@ def main():
             st.success("File loaded successfully!")
 
             st.dataframe(processed_df)
-           
+
         except Exception as e:
             st.error(e)
 

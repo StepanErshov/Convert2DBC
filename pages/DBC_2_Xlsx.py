@@ -1,23 +1,27 @@
 import streamlit as st
 import pandas as pd
-from xlsx2dbc import ExcelToDBCConverter
+from dbc2xlsx import DbcRead
 import os
+import tempfile
 from datetime import datetime
 import re
 from sqlalchemy import text
 
 conn = st.connection(
-    "can_db", type="sql", dialect="sqlite", database="/tmp/can_database.db"
+    "can_db",
+    type="sql",
+    dialect="sqlite",
+    database=f"{tempfile.gettempdir()}/can_database.db",
 )
 
 with conn.session as s:
     s.execute(
         text(
             """
-        CREATE TABLE IF NOT EXISTS converted_files (
+        CREATE TABLE IF NOT EXISTS dbc_converted_files (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             original_filename TEXT NOT NULL,
-            dbc_filename TEXT NOT NULL,
+            xlsx_filename TEXT NOT NULL,
             version TEXT NOT NULL,
             conversion_date TEXT NOT NULL,
             file_size INTEGER NOT NULL,
@@ -27,12 +31,6 @@ with conn.session as s:
         )
     )
     s.commit()
-
-# st.set_page_config(
-#     page_title="Excel to DBC Converter",
-#     page_icon=":car:",
-#     layout="wide"
-# )
 
 st.markdown(
     """
@@ -108,7 +106,7 @@ def generate_default_output_filename(input_filename, new_version=None):
         version, _ = extract_version_date(input_filename)
         new_version = version if version else "1.0.0"
 
-    return f"{base_name}_V{new_version}_{current_date}.dbc"
+    return f"{base_name}_V{new_version}_{current_date}.xlsx"
 
 
 def display_errors(errors):
@@ -129,144 +127,154 @@ def display_warnings(warnings):
                 )
 
 
-def validate_input_data(uploaded_file):
+def validate_dbc_file(uploaded_file):
     errors = []
     warnings = []
 
     try:
-        df = pd.read_excel(uploaded_file, sheet_name="Matrix")
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, uploaded_file.name)
 
-        required_columns = [
-            "Msg ID\n报文标识符",
-            "Msg Name\n报文名称",
-            "Signal Name\n信号名称",
-            "Start Byte\n起始字节",
-            "Start Bit\n起始位",
-            "Bit Length (Bit)\n信号长度",
-            "Byte Order\n排列格式(Intel/Motorola)",
-            "Data Type\n数据类型",
-            "Msg Length (Byte)\n报文长度",
-        ]
+        if not os.path.exists(temp_dir):
+            errors.append(f"Temporary directory does not exist: {temp_dir}")
+            return errors, warnings
 
-        missing_columns = [col for col in required_columns if col not in df.columns]
-        if missing_columns:
-            errors.append(f"Missing required columns: {', '.join(missing_columns)}")
+        with open(temp_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
 
-        for msg_id in df["Msg ID\n报文标识符"].dropna().unique():
-            try:
-                if isinstance(msg_id, str):
-                    if msg_id.startswith("0x"):
-                        int(msg_id, 16)
-                    else:
-                        int(msg_id)
-                else:
-                    int(msg_id)
-            except ValueError:
-                errors.append(f"Invalid message ID: {msg_id}")
+        if not os.path.exists(temp_path):
+            errors.append(f"Failed to create temporary file: {temp_path}")
+            return errors, warnings
 
-        for _, group in df.groupby("Msg ID\n报文标识符"):
-            msg_length = group["Msg Length (Byte)\n报文长度"].iloc[0]
-            for _, row in group.iterrows():
-                start_byte = row["Start Byte\n起始字节"]
-                start_bit = row["Start Bit\n起始位"]
-                bit_length = row["Bit Length (Bit)\n信号长度"]
+        converter = DbcRead(temp_path)
+        lib, ecu = converter.CreateDB()
 
-                if start_byte >= msg_length:
-                    errors.append(
-                        f"Signal '{row['Signal Name\n信号名称']}' is outside message bounds "
-                        f"(byte {start_byte} >= message length {msg_length})"
-                    )
+        if not lib:
+            errors.append("DBC file contains no messages")
 
-                if start_bit >= 8:
-                    errors.append(
-                        f"Invalid start bit {start_bit} in signal '{row['Signal Name\n信号名称']}'"
-                    )
+        if not ecu:
+            warnings.append("DBC file contains no ECU nodes")
 
-                if bit_length <= 0:
-                    errors.append(
-                        f"Invalid length {bit_length} in signal '{row['Signal Name\n信号名称']}'"
-                    )
+        for msg_name, msg_data in lib.items():
+            if not msg_data.get("Signals"):
+                warnings.append(f"Message '{msg_name}' contains no signals")
 
-                if start_byte * 8 + start_bit + bit_length > msg_length * 8:
-                    errors.append(
-                        f"Signal '{row['Signal Name\n信号名称']}' exceeds message bounds"
-                    )
+            if not msg_data.get("Senders"):
+                warnings.append(f"Message '{msg_name}' has no senders")
 
-        for _, row in df.iterrows():
-            data_type = str(row["Data Type\n数据类型"])
-            bit_length = row["Bit Length (Bit)\n信号长度"]
-
-            if "Float" in data_type and bit_length not in [32, 64]:
-                errors.append(
-                    f"Invalid length {bit_length} for float type in signal '{row['Signal Name\n信号名称']}'"
-                )
-
-            if "Signed" in data_type and bit_length < 2:
-                errors.append(
-                    f"Invalid length {bit_length} for signed type in signal '{row['Signal Name\n信号名称']}'"
-                )
-
-        bus_users = [
-            col
-            for col in df.columns
-            if any(val in ["S", "R"] for val in df[col].dropna().unique())
-            and col != "Unit\n单位"
-        ]
-
-        for msg_id, group in df.groupby("Msg ID\n报文标识符"):
-            senders = []
-            receivers = []
-
-            for bus_user in bus_users:
-                if bus_user in group.columns:
-                    if "S" in group[bus_user].values:
-                        senders.append(bus_user)
-                    if "R" in group[bus_user].values:
-                        receivers.append(bus_user)
-
-            if not senders:
-                warnings.append(f"Message {msg_id} has no senders")
-
-            if not receivers:
-                warnings.append(f"Message {msg_id} has no receivers")
-
-        for _, row in df.iterrows():
-            if pd.notna(row["Initial Value (Hex)\n初始值"]):
-                try:
-                    int(row["Initial Value (Hex)\n初始值"], 16)
-                except ValueError:
-                    errors.append(
-                        f"Invalid initial value {row['Initial Value (Hex)\n初始值']} "
-                        f"for signal '{row['Signal Name\n信号名称']}'"
-                    )
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
     except Exception as e:
-        errors.append(f"Error reading the Excel file: {str(e)}")
+        errors.append(f"Error reading the DBC file: {str(e)}")
+        try:
+            if "temp_path" in locals() and os.path.exists(temp_path):
+                os.remove(temp_path)
+        except:
+            pass
 
     return errors, warnings
 
 
 def main():
     st.markdown(
-        '<h1 class="title">📊 Excel to DBC Converter</h1>', unsafe_allow_html=True
+        '<h1 class="title">📊 DBC to Excel Converter</h1>', unsafe_allow_html=True
     )
     st.markdown(
-        "Upload your Excel file containing CAN data to convert it to a DBC file."
+        "Upload your DBC file containing CAN data to convert it to an Excel file."
     )
 
     col1, col2 = st.columns([3, 1])
 
     with col1:
         uploaded_file = st.file_uploader(
-            "Choose an Excel file", type=["xlsx"], key="file_uploader"
+            "Choose a DBC file", type=["dbc"], key="file_uploader"
         )
 
         if uploaded_file is not None:
             try:
-                df = pd.read_excel(uploaded_file, sheet_name="Matrix")
+                temp_dir = tempfile.gettempdir()
+                temp_path = os.path.join(temp_dir, uploaded_file.name)
+
+                if not os.path.exists(temp_dir):
+                    st.error(f"Temporary directory does not exist: {temp_dir}")
+                    return
+
+                with open(temp_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+
+                if not os.path.exists(temp_path):
+                    st.error(f"Failed to create temporary file: {temp_path}")
+                    return
+
+                converter = DbcRead(temp_path)
+                lib, ecu = converter.CreateDB()
+
+                preview_data = []
+                ecu_nodes = [node.name for node in ecu]
+
+                for msg_name, msg_data in list(lib.items())[:5]:
+                    msg_row = {
+                        "Message Name": msg_name,
+                        "Message ID": f"0x{int(msg_data['Msg_id']):X}",
+                        "Message Length": msg_data["Msg_length"],
+                        "Cycle Time": msg_data["Cycle_time"],
+                        "Signal Name": "",
+                        "Signal Description": "",
+                        "Start Byte": "",
+                        "Start Bit": "",
+                        "Bit Length": "",
+                        "Data Type": "",
+                        "Resolution": "",
+                        "Offset": "",
+                        "Min Value": "",
+                        "Max Value": "",
+                        "Unit": "",
+                    }
+
+                    for ecu_node in ecu_nodes[:3]:
+                        msg_row[ecu_node] = (
+                            "S" if ecu_node in msg_data["Senders"] else ""
+                        )
+
+                    preview_data.append(msg_row)
+
+                    for signal in msg_data["Signals"][:3]:
+                        sig_row = {
+                            "Message Name": "",
+                            "Message ID": "",
+                            "Message Length": "",
+                            "Cycle Time": "",
+                            "Signal Name": signal["Sgn_name"],
+                            "Signal Description": signal["Comment"] or "",
+                            "Start Byte": signal["Start_bit"] // 8,
+                            "Start Bit": signal["Start_bit"],
+                            "Bit Length": signal["Sgn_lenght"],
+                            "Data Type": (
+                                "Unsigned" if not signal["Is_signed"] else "Signed"
+                            ),
+                            "Resolution": signal["Factor"],
+                            "Offset": signal["Offset"],
+                            "Min Value": signal["Minimum"],
+                            "Max Value": signal["Maximum"],
+                            "Unit": signal["Unit"] or "",
+                        }
+
+                        for ecu_node in ecu_nodes[:3]:
+                            if ecu_node in msg_data["Senders"]:
+                                sig_row[ecu_node] = "S"
+                            elif ecu_node in signal["Receivers"]:
+                                sig_row[ecu_node] = "R"
+                            else:
+                                sig_row[ecu_node] = ""
+
+                        preview_data.append(sig_row)
+
+                preview_df = pd.DataFrame(preview_data)
+
                 st.subheader("Data Preview")
                 st.dataframe(
-                    df.head().style.set_properties(
+                    preview_df.style.set_properties(
                         **{
                             "background-color": "#f0f2f6",
                             "color": "#2c3e50",
@@ -275,18 +283,26 @@ def main():
                     )
                 )
 
-                errors, warnings = validate_input_data(uploaded_file)
+                errors, warnings = validate_dbc_file(uploaded_file)
                 display_errors(errors)
                 display_warnings(warnings)
 
                 if errors:
                     st.error(
-                        "Cannot convert due to validation errors. Please fix the issues in your Excel file."
+                        "Cannot convert due to validation errors. Please fix the issues in your DBC file."
                     )
                     return
 
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+
             except Exception as e:
-                st.error(f"Error reading the Excel file: {str(e)}")
+                st.error(f"Error reading the DBC file: {str(e)}")
+                try:
+                    if "temp_path" in locals() and os.path.exists(temp_path):
+                        os.remove(temp_path)
+                except:
+                    pass
                 return
 
     with col2:
@@ -297,7 +313,7 @@ def main():
             default_version = version if version else "1.0.0"
 
             new_version = st.text_input(
-                "DBC Version",
+                "Excel Version",
                 value=default_version,
                 help="Enter the version number in format X.X.X",
             )
@@ -308,21 +324,27 @@ def main():
             )
 
             custom_filename = st.text_input(
-                "Output DBC file name",
+                "Output Excel file name",
                 value=default_output_name,
                 help="You can customize the output file name",
             )
 
-            if not custom_filename.lower().endswith(".dbc"):
-                custom_filename += ".dbc"
+            if not custom_filename.lower().endswith(".xlsx"):
+                custom_filename += ".xlsx"
 
-            st.markdown("**Final DBC file name:**")
+            st.markdown("**Final Excel file name:**")
             st.code(custom_filename)
 
-            if st.button("Convert to DBC", key="convert_button"):
+            if st.button("Convert to Excel", key="convert_button"):
                 with st.spinner("Converting... Please wait"):
                     try:
-                        converter = ExcelToDBCConverter(uploaded_file)
+                        temp_path = os.path.join(
+                            tempfile.gettempdir(), uploaded_file.name
+                        )
+                        with open(temp_path, "wb") as f:
+                            f.write(uploaded_file.getbuffer())
+
+                        converter = DbcRead(temp_path)
                         success = converter.convert(custom_filename)
 
                         if success:
@@ -338,19 +360,19 @@ def main():
                                 s.execute(
                                     text(
                                         """
-                                        INSERT INTO converted_files (
+                                        INSERT INTO dbc_converted_files (
                                             original_filename, 
-                                            dbc_filename, 
+                                            xlsx_filename, 
                                             version, 
                                             conversion_date, 
                                             file_size,
                                             user_id
-                                        ) VALUES (:original, :dbc, :version, :date, :size, :user)
+                                        ) VALUES (:original, :xlsx, :version, :date, :size, :user)
                                     """
                                     ),
                                     {
                                         "original": uploaded_file.name,
-                                        "dbc": custom_filename,
+                                        "xlsx": custom_filename,
                                         "version": new_version,
                                         "date": current_date,
                                         "size": file_size,
@@ -364,20 +386,22 @@ def main():
                             with open(custom_filename, "rb") as f:
                                 bytes_data = f.read()
                                 st.download_button(
-                                    label="Download DBC File",
+                                    label="Download Excel File",
                                     data=bytes_data,
                                     file_name=custom_filename,
-                                    mime="application/octet-stream",
+                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                     key="download_button",
                                 )
+
+                        os.remove(temp_path)
 
                         st.subheader("Conversion History")
                         with conn.session as s:
                             result = s.execute(
                                 text(
                                     """
-                                SELECT original_filename, dbc_filename, version, conversion_date, file_size
-                                FROM converted_files
+                                SELECT original_filename, xlsx_filename, version, conversion_date, file_size
+                                FROM dbc_converted_files
                                 ORDER BY conversion_date DESC
                                 LIMIT 10
                             """
