@@ -10,7 +10,6 @@ from typing import List, Dict
 from collections import OrderedDict
 
 
-
 class DbcRead:
     def __init__(self, dbc_path: str):
         self.dbc_path = dbc_path
@@ -130,23 +129,47 @@ class DbcRead:
                 "test.xlsx",
                 "pages/test.xlsx",
                 os.path.join(os.path.dirname(__file__), "test.xlsx"),
-                os.path.join(os.path.dirname(__file__), "pages", "test.xlsx")
+                os.path.join(os.path.dirname(__file__), "pages", "test.xlsx"),
             ]
-            
+
             for path in possible_paths:
                 if os.path.exists(path):
                     test_xlsx_path = path
                     break
-            
+
             if not test_xlsx_path:
                 print("Warning: test.xlsx not found, using default columns")
                 base_columns = [
-                    "Message Name", "Message Type", "Message ID", "Send Type", "Cycle Time",
-                    "Protocol", "CAN FD", "Message Length", "Signal Name", "Signal Description",
-                    "Byte Order", "Start Byte", "Start Bit", "Send Type", "Bit Length",
-                    "Data Type", "Resolution", "Offset", "Min Value", "Max Value",
-                    "Min Raw", "Max Raw", "Initial Value", "Invalid Value", "Error Value",
-                    "Unit", "Value Description", "GenMsgCycleTimeFast", "GenMsgNrOfRepetition", "GenMsgDelayTime"
+                    "Message Name",
+                    "Message Type",
+                    "Message ID",
+                    "Send Type",
+                    "Cycle Time",
+                    "Protocol",
+                    "CAN FD",
+                    "Message Length",
+                    "Signal Name",
+                    "Signal Description",
+                    "Byte Order",
+                    "Start Byte",
+                    "Start Bit",
+                    "Send Type",
+                    "Bit Length",
+                    "Data Type",
+                    "Resolution",
+                    "Offset",
+                    "Min Value",
+                    "Max Value",
+                    "Min Raw",
+                    "Max Raw",
+                    "Initial Value",
+                    "Invalid Value",
+                    "Error Value",
+                    "Unit",
+                    "Value Description",
+                    "GenMsgCycleTimeFast",
+                    "GenMsgNrOfRepetition",
+                    "GenMsgDelayTime",
                 ]
                 test_sheet_name = "Sheet1"
             else:
