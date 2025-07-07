@@ -8,7 +8,7 @@ import re
 import cantools
 
 def set_page_config():
-    st.title("CAN ID Map")
+    st.title("🔥CAN ID Map")
 
 def files_upload():
     uploaded_files = st.file_uploader("Load domain matrices or DBC", type=["xlsx", "dbc"], accept_multiple_files=True)
