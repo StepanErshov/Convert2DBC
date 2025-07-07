@@ -1586,6 +1586,28 @@ def validate_maximum(data_frame: pd.DataFrame) -> bool:
     )
     resolutions = dict(zip(data_frame["Sig Name"], data_frame["Resolution"]))
     offsets = dict(zip(data_frame["Sig Name"], data_frame["Offset"]))
+    last_sign_val_desc = dict(zip(data_frame["Sig Name"], data_frame["Signal Value Description"]))
+
+    invalid_sig_val_desc = {}
+    error_with_desc = {}
+
+    for sig_name, val in last_sign_val_desc.items():
+        if pd.isna(val):
+            invalid_sig_val_desc[sig_name] = "NaN"
+            continue
+        
+        str_val = str(val).strip().split("\n")[-1].split(":")[0].split("~")[-1]
+        try:
+            num = int(str_val, 16)
+            if max_phys[sig_name] > num:
+                error_with_desc[sig_name] = {
+                    "Max Val Phys": max_phys[sig_name],
+                    "Max Val Description": num
+                }
+
+        except ValueError:
+            st.error(f"Cannot convert str {str_val}, to int")
+
 
     if not max_hex:
         max_hex = dict(zip(data_frame["Sig Name"], data_frame["Invalid"]))
@@ -1636,7 +1658,7 @@ def validate_maximum(data_frame: pd.DataFrame) -> bool:
                 }
             )
 
-    if not invalid_signals:
+    if not invalid_signals and not error_with_desc:
         st.success(
             "All maximum values match the formula: Physical = (Hex * Resolution) + Offset"
         )
@@ -1660,7 +1682,16 @@ def validate_maximum(data_frame: pd.DataFrame) -> bool:
             if not df_errors.empty:
                 st.dataframe(df_errors)
                 st.info("Physical value should equal (Hex * Resolution) + Offset")
-
+        
+        with st.expander("Invalid Max Phys and Max Description", expanded=True):
+            st.error(f"Found {len(error_with_desc.keys())} signals, which have Phys value bigger which Signal Value Description")
+            data = {
+                "Signal Name": list(error_with_desc.keys()),
+                "Max Value Phys": [v["Max Val Phys"] for v in error_with_desc.values()],
+                "Signal Value Description": [v["Max Val Description"] for v in error_with_desc.values()]
+            }
+            st.dataframe(pd.DataFrame(data))
+            st.info("Max Value Phys/Hex will be less than last value in Signal Value Description")
         return False
 
 
