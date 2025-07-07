@@ -1599,7 +1599,7 @@ def validate_maximum(data_frame: pd.DataFrame) -> bool:
         str_val = str(val).strip().split("\n")[-1].split(":")[0].split("~")[-1]
         try:
             num = int(str_val, 16)
-            if max_phys[sig_name] > num:
+            if max_phys[sig_name] < num:
                 error_with_desc[sig_name] = {
                     "Max Val Phys": max_phys[sig_name],
                     "Max Val Description": num
@@ -1684,14 +1684,14 @@ def validate_maximum(data_frame: pd.DataFrame) -> bool:
                 st.info("Physical value should equal (Hex * Resolution) + Offset")
         
         with st.expander("Invalid Max Phys and Max Description", expanded=True):
-            st.error(f"Found {len(error_with_desc.keys())} signals, which have Phys value bigger which Signal Value Description")
+            st.error(f"Found {len(error_with_desc.keys())} signals, which have Phys value less which Signal Value Description")
             data = {
                 "Signal Name": list(error_with_desc.keys()),
                 "Max Value Phys": [v["Max Val Phys"] for v in error_with_desc.values()],
                 "Signal Value Description": [v["Max Val Description"] for v in error_with_desc.values()]
             }
             st.dataframe(pd.DataFrame(data))
-            st.info("Max Value Phys/Hex will be less than last value in Signal Value Description")
+            st.info("The maximum Phys/Hex value must be greater than or equal to the last value in the signal value description.")
         return False
 
 
