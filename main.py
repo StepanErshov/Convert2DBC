@@ -57,6 +57,8 @@ can_validator = st.Page("pages/CANValidator.py", title="CAN Validator", icon="�
 
 lin_validator = st.Page("pages/LINValidator.py", title="LIN Validator", icon="🚀")
 
+can_id_map = st.Page("pages/CAN_ID_Map.py", title="CAN ID Map", icon="🔥")
+
 # eth_validator = st.Page(
 #     "pages/ETHValidator.py",
 #     title="ETH Validator",
@@ -73,7 +75,7 @@ pg = st.navigation(
             can_validator,
             lin_validator,
         ],
-        "Developments": [dbc2xlsx],
+        "Developments": [dbc2xlsx, can_id_map],
     }
 )
 
