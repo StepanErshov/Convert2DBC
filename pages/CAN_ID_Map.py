@@ -123,15 +123,6 @@ def stylise_cell(cell, msg_cycle_time):
     else:
         cell.fill = cycle_time_to_fill[msg_cycle_time]
 
-def get_check_result_ws(df, CAN_ID_Map):
-    if CAN_ID_Map and not isinstance(df, int):
-        id_map_ws = CAN_ID_Map["ATOM_ID Map"]
-        check_result_ws = CAN_ID_Map.copy_worksheet(id_map_ws)
-        check_result_ws.title = "CheckResult"
-
-        return check_result_ws
-    return 0
-
 def get_overlays_df(df):
     if not isinstance(df, int):
         overlays_df = df[df['message id'].duplicated(keep=False)]
@@ -159,12 +150,17 @@ def show_multi_id_messages(multi_id_messages):
         st.error("Multi ID messages:")
         st.write(multi_id_messages)
 
+def check_errors(overlays_df, multi_id_messages):
+    if isinstance(overlays_df, int) or multi_id_messages:
+        st.error("Overlays/Multi id messages found...")
+        st.warning("Also check <Message Cycle time (ms)> concurrency")
+        st.stop()
+
+
 def generate_CAN_ID_Map(template_path, df):
     if template_path and not isinstance(df, int):
         # Загрузить шаблон
         CAN_ID_Map = load_workbook(template_path)
-        # Добавить лист CheckResult
-        check_result_ws = get_check_result_ws(df, CAN_ID_Map)
         # Получить датафрейм с наложенными id
         overlays_df = get_overlays_df(df)
         # Вывести в интерфейс наложенные id
@@ -173,6 +169,8 @@ def generate_CAN_ID_Map(template_path, df):
         multi_id_messages = get_multi_id_messages(df)
         # Вывести в интерфейс сообщения с неоднозначными id
         show_multi_id_messages(multi_id_messages)
+        # Проверить на наличие ошибок
+        check_errors(overlays_df, multi_id_messages)
         history_ws = CAN_ID_Map['History']
         id_map_ws = CAN_ID_Map["ATOM_ID Map"]
         # Подготовить словарь для конвертации msg_id в id столбца excel 
@@ -190,17 +188,8 @@ def generate_CAN_ID_Map(template_path, df):
             msg_cycle_time = row.iloc[2]
             # Заполнение msg_name
             cell_id = f'{msg_id_column}{msg_id_row+1}'
-            # Проверка на наложение и заполнение ячеек
-            if msg_name in overlays_df.iloc[:, 0].values or msg_name in multi_id_messages:
-                if not id_map_ws[cell_id].value:
-                    id_map_ws[cell_id] = msg_name
-                    check_result_ws[cell_id] = msg_name
-                else:
-                    id_map_ws[cell_id] = str(id_map_ws[cell_id].value) + f'\n{msg_name}'
-                    check_result_ws[cell_id] = str(check_result_ws[cell_id].value) + f'\n{msg_name}'
-            else:
-                id_map_ws[cell_id] = msg_name
-                stylise_cell(id_map_ws[cell_id], msg_cycle_time)
+            id_map_ws[cell_id] = msg_name
+            stylise_cell(id_map_ws[cell_id], msg_cycle_time)
 
         CAN_ID_Map.save("CAN_ID_Map.xlsx")
         CAN_ID_Map.close()
@@ -227,7 +216,6 @@ def download_CAN_ID_Map(CAN_ID_Map, version):
 def main():
     try:
         template_path = "pages/CAN_ID_Map_template.xlsx"
-
         # Озаглавить страницу
         set_page_config()
         # Предоставить форму для загрузки файлов
