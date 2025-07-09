@@ -1149,7 +1149,7 @@ def validate_signal_value_description(data_frame: pd.DataFrame) -> bool:
         r")+$"
     )
 
-    allowed_chars_pattern = re.compile(r'^[A-Za-z0-9 ,.;:+_/\-<>%()~-]+$')
+    allowed_chars_pattern = re.compile(r'^[A-Za-z0-9 ,.;:+_/\-<>%()&~-]+$')
     for sig_name, val in sig_desc.items():
         if pd.isna(val):
             invalid_nan[sig_name] = "NaN"
