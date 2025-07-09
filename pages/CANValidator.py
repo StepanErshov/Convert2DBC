@@ -1138,6 +1138,7 @@ def validate_signal_value_description(data_frame: pd.DataFrame) -> bool:
 
     invalid_val = {}
     invalid_nan = {}
+    invalid_chars = {}
 
     pattern = re.compile(
         r"^(?:"
@@ -1148,18 +1149,51 @@ def validate_signal_value_description(data_frame: pd.DataFrame) -> bool:
         r")+$"
     )
 
+    allowed_chars_pattern = re.compile(r'^[A-Za-z0-9 ,.;:+_/\-<>%()~-]+$')
     for sig_name, val in sig_desc.items():
         if pd.isna(val):
             invalid_nan[sig_name] = "NaN"
             continue
 
         str_val = str(val).strip()
+
+        parts = re.split(r'(0x[0-9A-Fa-f]+[:~]?)', str_val)
+        descriptions = [part for i, part in enumerate(parts) if i % 2 == 0 and part.strip()]
+        
+        has_invalid_chars = False
+        for desc in descriptions:
+            if not allowed_chars_pattern.match(desc):
+                has_invalid_chars = True
+                break
+                
+        if has_invalid_chars:
+            invalid_chars[sig_name] = str_val
+            continue
+            
         if not pattern.fullmatch(str_val):
             invalid_val[sig_name] = str_val
 
-    if not invalid_nan and not invalid_val:
+    if not invalid_nan and not invalid_val and not invalid_chars:
         st.success("All Signal Values Description are correct!")
         return True
+
+    if invalid_chars:
+        with st.expander(
+            "Invalid characters in signal value description (Rule 27)", expanded=True
+        ):
+            st.error(f"Found {len(invalid_chars)} value descriptions with invalid characters")
+            st.dataframe(
+                pd.DataFrame(
+                    {
+                        "Signal Name": invalid_chars.keys(),
+                        "Invalid Description": invalid_chars.values(),
+                    }
+                )
+            )
+            st.info(
+                "Allowed characters are: A-Z, a-z, 0-9, spaces, and the following symbols: ,.;:+_/-<>%()~&°\n"
+                "Examples of invalid characters: !@#$^=[]{}|'\" etc."
+            )
 
     if invalid_val:
         with st.expander(
@@ -1198,7 +1232,7 @@ def validate_signal_value_description(data_frame: pd.DataFrame) -> bool:
                 )
             )
 
-    return False if (invalid_nan or invalid_val) else True
+    return False if (invalid_nan or invalid_val or invalid_chars) else True
 
 
 def validate_signal_descriprion(data_frame: pd.DataFrame) -> bool:
@@ -1213,7 +1247,7 @@ def validate_signal_descriprion(data_frame: pd.DataFrame) -> bool:
             continue
 
         str_val = str(val)
-        if not re.fullmatch(r"^[A-Za-z0-9 ,.;:+_/-<>%()°~-]+$", str_val):
+        if not re.fullmatch(r"^[A-Za-z0-9 ,.;:+_/-<>%()~-]+$", str_val):
             invalid_val[mes] = str_val
 
     if not invalid_nan and not invalid_val:
