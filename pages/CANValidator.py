@@ -1667,8 +1667,9 @@ def validate_maximum(data_frame: pd.DataFrame) -> bool:
                 hex_int = int(hex_val)
 
             calculated_phys = hex_int * res + offset
-
-            if not math.isclose(calculated_phys, phys, rel_tol=1e-9):
+            difference = abs(calculated_phys - phys)
+            
+            if not math.isclose(calculated_phys, phys, rel_tol=1e-9) and difference >= 1:
                 invalid_signals.append(
                     {
                         "Signal Name": sig_name,
@@ -1677,7 +1678,7 @@ def validate_maximum(data_frame: pd.DataFrame) -> bool:
                         "Calculated Physical": calculated_phys,
                         "Resolution": res,
                         "Offset": offset,
-                        "Difference": abs(calculated_phys - phys),
+                        "Difference": difference,
                     }
                 )
 
