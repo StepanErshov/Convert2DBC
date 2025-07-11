@@ -1780,6 +1780,86 @@ def validate_cycle_times(data_frame):
 
     return False
 
+# Initinal
+def validate_signal_values_against_bit_length(data_frame: pd.DataFrame) -> bool:
+    signal_lengths = dict(zip(data_frame["Sig Name"], data_frame["Length"].astype(int)))
+    max_values = dict(zip(data_frame["Sig Name"], data_frame["Max"]))
+    
+    try:
+        initial_values = dict(zip(
+            data_frame["Sig Name"], 
+            data_frame["Initinal"].apply(
+                lambda x: int(x, 16) if isinstance(x, str) and x.startswith(("0x", "0X")) 
+                else int(x) if isinstance(x, str) 
+                else x
+            )
+        ))
+        
+        invalid_values = dict(zip(
+            data_frame["Sig Name"], 
+            data_frame["Invalid"].apply(
+                lambda x: int(x, 16) if isinstance(x, str) and x.startswith(("0x", "0X")) 
+                else int(x) if isinstance(x, str) 
+                else x
+            )
+        ))
+    except (ValueError, AttributeError) as e:
+        st.error(f"Failed to parse Initial or Invalid values: {str(e)}")
+        return False
+
+    invalid_signals = []
+
+    for sig_name, length in signal_lengths.items():
+        if pd.isna(length):
+            continue
+            
+        max_allowed = (1 << int(length)) - 1
+        
+        max_val = max_values.get(sig_name)
+        init_val = initial_values.get(sig_name)
+        inval_val = invalid_values.get(sig_name)
+
+        if not pd.isna(max_val) and max_val > max_allowed:
+            invalid_signals.append({
+                "Signal Name": sig_name,
+                "Value Type": "Max",
+                "Value": max_val,
+                "Bit Length": length,
+                "Max Allowed": max_allowed
+            })
+
+        if not pd.isna(init_val) and init_val > max_allowed:
+            invalid_signals.append({
+                "Signal Name": sig_name,
+                "Value Type": "Initial",
+                "Value": init_val,
+                "Bit Length": length,
+                "Max Allowed": max_allowed
+            })
+
+        if not pd.isna(inval_val) and inval_val > max_allowed:
+            invalid_signals.append({
+                "Signal Name": sig_name,
+                "Value Type": "Invalid",
+                "Value": inval_val,
+                "Bit Length": length,
+                "Max Allowed": max_allowed
+            })
+
+    if not invalid_signals:
+        st.success("All signal values are within bit length limits!")
+        return True
+    else:
+        with st.expander("Signal Values Exceeding Bit Length Limits", expanded=True):
+            st.error(f"Found {len(invalid_signals)} signals exceeding bit length limits")
+            st.dataframe(pd.DataFrame(invalid_signals))
+            st.info(
+                "Signal values (Max, Initial, Invalid) must not exceed 2^N - 1, "
+                "where N is the signal bit length"
+            )
+        return False
+
+
 
 def main():
     st.title("🚧CAN Messages Validator")
@@ -1825,6 +1905,7 @@ def main():
                 tab16,
                 tab17,
                 tab18,
+                tab20
                 # tab19
             ) = st.tabs(
                 [
@@ -1847,6 +1928,7 @@ def main():
                     "Minimum",
                     "Maximum",
                     # "ECU Consistency"
+                    "Signal Values Against Bit Length"
                 ]
             )
 
@@ -1906,6 +1988,9 @@ def main():
 
             # with tab19:
             #     validate_cycle_times(processed_df)
+
+            with tab20:
+                validate_signal_values_against_bit_length(processed_df)
 
         except Exception as e:
             st.error(f"Error processing file: {str(e)}")
