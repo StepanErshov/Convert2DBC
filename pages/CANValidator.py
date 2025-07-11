@@ -1143,13 +1143,13 @@ def validate_signal_value_description(data_frame: pd.DataFrame) -> bool:
     pattern = re.compile(
         r"^(?:"
         r"0x[0-9A-Fa-f]+(:|~0x[0-9A-Fa-f]+:)\s*"
-        r"[<>A-Za-z0-9 _+\-.,/%°()&;]+"
+        r"[<>A-Za-z0-9 _+\-.,/%°()&]+"
         r"(?:\s*[+&]\s*[<>A-Za-z0-9 _+\-.,/%°()]+)*"
         r"(?:\n|$)"
         r")+$"
     )
 
-    allowed_chars_pattern = re.compile(r'^[A-Za-z0-9 ,.;:+_/\-<>%()&~-]+$')
+    allowed_chars_pattern = re.compile(r'^[A-Za-z0-9 ,.:+_/\-<>%()&~-]+$')
     for sig_name, val in sig_desc.items():
         if pd.isna(val):
             invalid_nan[sig_name] = "NaN"
@@ -1179,7 +1179,7 @@ def validate_signal_value_description(data_frame: pd.DataFrame) -> bool:
 
     if invalid_chars:
         with st.expander(
-            "Invalid characters in signal value description (Rule 27)", expanded=True
+            "Invalid characters in signal value description", expanded=True
         ):
             st.error(f"Found {len(invalid_chars)} value descriptions with invalid characters")
             st.dataframe(
@@ -1191,7 +1191,7 @@ def validate_signal_value_description(data_frame: pd.DataFrame) -> bool:
                 )
             )
             st.info(
-                "Allowed characters are: A-Z, a-z, 0-9, spaces, and the following symbols: ,.;:+_/-<>%()~&°\n"
+                "Allowed characters are: A-Z, a-z, 0-9, spaces, and the following symbols: ,.:+_/-<>%()~&°\n"
                 "Examples of invalid characters: !@#$^=[]{}|'\" etc."
             )
 
