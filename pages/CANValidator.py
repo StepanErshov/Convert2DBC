@@ -7,6 +7,8 @@ import streamlit as st
 import os
 import math
 from datetime import datetime
+from openpyxl import load_workbook
+from openpyxl.styles import PatternFill, Font
 
 st.markdown(
     """
@@ -210,7 +212,7 @@ def create_correct_df(df: pd.DataFrame) -> pd.DataFrame:
     return new_df
 
 
-def export_validation_errors_to_excel(data_frame: pd.DataFrame, file_path: str) -> bool:
+def export_validation_errors_to_excel(data_frame: pd.DataFrame, original_file: Union[str, UploadedFile], output_file_path: str) -> bool:
     all_errors = []
 
     # 1. Message Name errors
@@ -719,18 +721,131 @@ def export_validation_errors_to_excel(data_frame: pd.DataFrame, file_path: str) 
                 }
             )
 
-    # Create the Excel file if there are errors
-    if all_errors:
-        error_df = pd.DataFrame(all_errors)
-        error_df = error_df[
-            ["Error Type", "Message/Signal Name", "Details", "Expected"]
-        ]
-
-        with pd.ExcelWriter(file_path, engine="openpyxl") as writer:
-            error_df.to_excel(writer, sheet_name="Validation Errors", index=False)
-        return True
-    else:
+    if not all_errors:
         return False
+
+    if isinstance(original_file, UploadedFile):
+        temp_path = "temp_input.xlsx"
+        with open(temp_path, "wb") as f:
+            f.write(original_file.getbuffer())
+        wb = load_workbook(temp_path)
+        os.remove(temp_path)
+    else:
+        wb = load_workbook(original_file)
+    
+    ws = wb["Matrix"]
+
+    error_fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+    error_font = Font(color="FFFFFF", bold=True)
+    
+    header_map = {}
+    for cell in ws[1]:
+        header_map[cell.value] = cell.column
+
+    column_mapping = {
+        "Msg Name": "Msg Name\n报文名称",
+        "Msg Type": "Msg Type\n报文类型",
+        "Msg ID": "Msg ID\n报文标识符",
+        "Cycle Type": "Msg Cycle Time (ms)\n报文周期时间",
+        "Msg Time Fast": "Msg Cycle Time Fast(ms)\n报文发送的快速周期",
+        "Msg Reption": "Msg Nr. Of Reption\n报文快速发送的次数",
+        "Msg Delay": "Msg Delay Time(ms)\n报文延时时间",
+        "Send Type": "Msg Send Type\n报文发送类型",
+        "Msg Length": "Msg Length (Byte)\n报文长度",
+        "Sig Name": "Signal Name\n信号名称",
+        "Start Byte": "Start Byte\n起始字节",
+        "Start Bit": "Start Bit\n起始位",
+        "Length": "Bit Length (Bit)\n信号长度",
+        "Resolution": "Resolution\n精度",
+        "Offset": "Offset\n偏移量",
+        "Initinal": "Initial Value (Hex)\n初始值",
+        "Invalid": "Invalid Value(Hex)\n无效值",
+        "Min": "Signal Min. Value (phys)\n物理最小值",
+        "Min Hex": "Signal Min. Value (Hex)\n总线最小值",
+        "Max": "Signal Max. Value (phys)\n物理最大值",
+        "Max Hex": "Signal Max. Value (Hex)\n总线最大值",
+        "Unit": "Unit\n单位",
+        "Byte Order": "Byte Order\n排列格式(Intel/Motorola)",
+        "Data Type": "Data Type\n数据类型",
+        "Description": "Signal Description\n信号描述",
+        "Signal Value Description": "Signal Value Description\n信号值描述",
+        "Signal Send Type": "Signal Send Type\n信号发送类型",
+        "Inactive value": "Inactive Value (Hex)\n非使能值",
+        "Frame Format": "Frame Format\n帧格式",
+        "BRS": "BRS\n传输速率切换标识位"
+    }
+    
+    row_map = {}
+    for row_idx in range(2, ws.max_row + 1):
+        msg_name = ws.cell(row=row_idx, column=header_map[column_mapping["Msg Name"]]).value
+        sig_name = ws.cell(row=row_idx, column=header_map[column_mapping["Sig Name"]]).value
+        if msg_name or sig_name:
+            row_map[(str(msg_name).strip(), str(sig_name).strip())] = row_idx
+
+
+    for error in all_errors:
+        error_type = error["Error Type"]
+        name = error["Message/Signal Name"].strip()
+
+        column_key = None
+
+        if "Message Name" in error_type:
+            column_key = "Msg Name"
+        elif "Message Type" in error_type:
+            column_key = "Msg Type"
+        elif "Message ID" in error_type:
+            column_key = "Msg ID"
+        elif "Send Type" in error_type:
+            column_key = "Send Type"
+        elif "Frame Format" in error_type:
+            column_key = "Frame Format"
+        elif "BRS" in error_type:
+            column_key = "BRS"
+        elif "Message Length" in error_type:
+            column_key = "Msg Length"
+        elif "Signal Name" in error_type:
+            column_key = "Sig Name"
+        elif "Signal Value Description" in error_type:
+            column_key = "Signal Value Description"
+        elif "Signal Description" in error_type:
+            column_key = "Description"
+        elif "Byte Order" in error_type:
+            column_key = "Byte Order"
+        elif "Start Byte" in error_type:
+            column_key = "Start Byte"
+        elif "Start Bit" in error_type:
+            column_key = "Start Bit"
+        elif "Signal Send Type" in error_type:
+            column_key = "Signal Send Type"
+        elif "Resolution" in error_type:
+            column_key = "Resolution"
+        elif "Offset" in error_type:
+            column_key = "Offset"
+        elif "Minimum" in error_type:
+            column_key = "Min"
+        elif "Maximum" in error_type:
+            column_key = "Max"
+        
+        if not column_key or column_key not in column_mapping:
+            continue
+        
+        for (msg_name, sig_name), row_idx in row_map.items():
+            if msg_name == name or sig_name == name:
+                col_name = column_mapping[column_key]
+                if col_name in header_map:
+                    col_idx = header_map[col_name]
+                    ws.cell(row=row_idx, column=col_idx).fill = error_fill
+                    ws.cell(row=row_idx, column=col_idx).font = error_font
+
+    wb.save(output_file_path)
+    return True
+
+
+def get_column_index(ws, column_name):
+    for cell in ws[1]:
+        if cell.value == column_name:
+            return cell.column
+    return None
 
 
 def validate_messages_name(data_frame: pd.DataFrame) -> bool:
@@ -1873,12 +1988,12 @@ def main():
             st.success("File loaded successfully!")
 
             if st.button("Export All Validation Errors to Excel"):
-                output_path = f"{file_attr["protocol"]}_{file_attr["domain_name"]}_{file_attr["date"]}_validation_errors_{datetime.now().strftime("%Y%m%d")}.xlsx"
-                if export_validation_errors_to_excel(processed_df, output_path):
-                    st.success(f"Validation errors exported to {output_path}")
+                output_path = f"{file_attr['protocol']}_{file_attr['domain_name']}_{file_attr['date']}_highlighted_errors_{datetime.now().strftime('%Y%m%d')}.xlsx"
+                if export_validation_errors_to_excel(processed_df, uploaded_file, output_path):
+                    st.success(f"Validation errors highlighted in {output_path}")
                     with open(output_path, "rb") as f:
                         st.download_button(
-                            label="Download Error Report",
+                            label="Download Highlighted File",
                             data=f,
                             file_name=output_path,
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
