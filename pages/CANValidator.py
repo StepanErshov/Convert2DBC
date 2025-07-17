@@ -495,14 +495,14 @@ def export_validation_errors_to_excel(data_frame: pd.DataFrame, original_file: U
     sig_desc = dict(zip(data_frame["Sig Name"], data_frame["Description"]))
     for sig_name, val in sig_desc.items():
         if pd.isna(val):
-            all_errors.append(
-                {
-                    "Error Type": "Missing Signal Description",
-                    "Message/Signal Name": sig_name,
-                    "Details": "Value is empty",
-                    "Expected": "Signal description is required",
-                }
-            )
+            # all_errors.append(
+            #     {
+            #         "Error Type": "Missing Signal Description",
+            #         "Message/Signal Name": sig_name,
+            #         "Details": "Value is empty",
+            #         "Expected": "Signal description is required",
+            #     }
+            # )
             continue
         str_val = str(val)
         if not re.fullmatch(r"^[A-Za-z0-9 ,.;:+_/-<>%()°~-]+$", str_val):
@@ -690,6 +690,27 @@ def export_validation_errors_to_excel(data_frame: pd.DataFrame, original_file: U
     if not max_hex:
         max_hex = dict(zip(data_frame["Sig Name"], data_frame["Invalid"]))
 
+    invalid_sig_val_desc = {}
+    last_sign_val_desc = dict(zip(data_frame["Sig Name"], data_frame["Signal Value Description"]))
+
+    for sig_name, val in last_sign_val_desc.items():
+        if pd.isna(val):
+            invalid_sig_val_desc[sig_name] = "NaN"
+            continue
+        
+        str_val = str(val).strip().split("\n")[-1].split(":")[0].split("~")[-1]
+        try:
+            num = int(str_val, 16)
+            if max_phys[sig_name] < num:
+                all_errors.append ({
+                    "Error Type": "Phys/Hex max value greater than max signal value description",
+                    "Message/Signal Name": sig_name,
+                    "Details": f"Max (Physical): {max_phys[sig_name]}, Max (Hex): {max_hex[sig_name]}, Signal Value Description: {num}",
+                    "Expected": "The maximum Phys/Hex value must be greater than or equal to the last value in the signal value description."
+                })
+        except ValueError:
+            continue
+
     for sig_name in max_phys.keys():
         phys = max_phys.get(sig_name)
         hex_val = max_hex.get(sig_name)
@@ -728,6 +749,70 @@ def export_validation_errors_to_excel(data_frame: pd.DataFrame, original_file: U
                     "Expected": "Hex value should be convertible to integer",
                 }
             )
+    
+
+    # Initinal
+    signal_lengths = dict(zip(data_frame["Sig Name"], data_frame["Length"].astype(int)))
+    max_values = dict(zip(data_frame["Sig Name"], data_frame["Max"]))
+    
+    try:
+        initial_values = dict(zip(
+            data_frame["Sig Name"], 
+            data_frame["Initinal"].apply(
+                lambda x: int(x, 16) if isinstance(x, str) and x.startswith(("0x", "0X")) 
+                else int(x) if isinstance(x, str) 
+                else x
+            )
+        ))
+        
+        invalid_values = dict(zip(
+            data_frame["Sig Name"], 
+            data_frame["Invalid"].apply(
+                lambda x: int(x, 16) if isinstance(x, str) and x.startswith(("0x", "0X")) 
+                else int(x) if isinstance(x, str) 
+                else x
+            )
+        ))
+    except (ValueError, AttributeError) as e:
+        st.error(f"Failed to parse Initial or Invalid values: {str(e)}")
+        return False
+
+    invalid_signals = []
+
+    for sig_name, length in signal_lengths.items():
+        if pd.isna(length):
+            continue
+            
+        max_allowed = (1 << int(length)) - 1
+        
+        max_val = max_values.get(sig_name)
+        init_val = initial_values.get(sig_name)
+        inval_val = invalid_values.get(sig_name)
+
+        if not pd.isna(max_val) and max_val > max_allowed:
+            all_errors.append({
+                "Error Type": "Max value exceeding bit length limits",
+                "Message/Signal Name": sig_name,
+                "Details": f"Max Value: {max_val}, Bit Length: {length}, Max Allowed: {max_allowed}",
+                "Expected": "Signal values (Max, Initial, Invalid) must not exceed 2^N - 1, where N is the signal bit length",
+            })
+
+        if not pd.isna(init_val) and init_val > max_allowed:
+            all_errors.append({
+                "Error Type": "Initinal value exceeding bit length limits",
+                "Message/Signal Name": sig_name,
+                "Details": f"Initinal Value: {init_val}, Bit Length: {length}, Max Allowed: {max_allowed}",
+                "Expected": "Signal values (Max, Initial, Invalid) must not exceed 2^N - 1, where N is the signal bit length",
+            })
+
+        if not pd.isna(inval_val) and inval_val > max_allowed:
+            invalid_signals.append({
+                "Error Type": "Invalid value exceeding bit length limits",
+                "Message/Signal Name": sig_name,
+                "Details": f"Invalid Value: {inval_val}, Bit Length: {length}, Max Allowed: {max_allowed}",
+                "Expected": "Signal values (Max, Initial, Invalid) must not exceed 2^N - 1, where N is the signal bit length",
+            })
+
 
     if not all_errors:
         return False
