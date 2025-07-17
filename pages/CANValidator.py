@@ -6,9 +6,17 @@ import pprint
 import streamlit as st
 import os
 import math
+from openpyxl.worksheet import table
 from datetime import datetime
 from openpyxl import load_workbook
-from openpyxl.styles import PatternFill, Font
+from openpyxl.styles import (
+    PatternFill, 
+    Font, 
+    Alignment, 
+    Border, 
+    Side
+)
+from openpyxl.utils import get_column_letter
 
 st.markdown(
     """
@@ -733,9 +741,16 @@ def export_validation_errors_to_excel(data_frame: pd.DataFrame, original_file: U
     else:
         wb = load_workbook(original_file)
     
+    all_sheet_name = ["Cover", "History", "Data ID", "Legend", "CheckResult", "ChangeList"]
+
+    for sheet in all_sheet_name:
+        del wb[sheet]
+
     ws = wb["Matrix"]
 
     error_fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
+    warning_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+    bg_fill = PatternFill(start_color="00CCFF", end_color="00CCFF", fill_type="solid")
     error_font = Font(color="FFFFFF", bold=True)
     
     header_map = {}
@@ -837,7 +852,73 @@ def export_validation_errors_to_excel(data_frame: pd.DataFrame, original_file: U
                     ws.cell(row=row_idx, column=col_idx).fill = error_fill
                     ws.cell(row=row_idx, column=col_idx).font = error_font
 
+    
+    # ws = wb["CheckResult"]
+
+    if "CheckResult" not in wb.sheetnames:
+        wb.create_sheet("CheckResult")
+    
+    ws = wb["CheckResult"]
+    
+    header_style = {
+    'fill': PatternFill(start_color="00CCFF", fill_type="solid"),
+    'font': Font(name='宋体', bold=True, size=13, color='000000', italic=True),
+    'alignment': Alignment(horizontal="center", vertical="center"),
+    'border': Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+        )
+    }
+
+    column_names = ["Serial number", "Warning site", "Warning description", "Expected"]
+    for col_num, name in enumerate(column_names, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = name
+        for attr, value in header_style.items():
+            setattr(cell, attr, value)
+    
+        column_letter = get_column_letter(col_num)
+        ws.column_dimensions[column_letter].width = len(name) + 20
+    
+    start_col = 1
+    end_col = len(column_names)
+    ws.merge_cells(start_row=2, start_column=start_col, end_row=2, end_column=end_col)
+
+    merged_cell = ws.cell(row=2, column=start_col)
+    merged_cell.value = "【Warning】All warning cells"
+    for attr, value in header_style.items():
+        setattr(merged_cell, attr, value)
+
+    for row_idx, error in enumerate(all_errors, start=3):
+        cell1 = ws.cell(row=row_idx, column=1)
+        cell1.value = row_idx - 2
+        cell1.font = Font(name='宋体', size=12, color='000000')
+        cell1.alignment = Alignment(horizontal="center", vertical="center")
+        cell2 = ws.cell(row=row_idx, column=2)
+        cell2.value = error["Message/Signal Name"]
+        cell2.font = Font(name='宋体', size=12, color='000000')
+        cell2.alignment = Alignment(horizontal="center", vertical="center")
+        cell3 = ws.cell(row=row_idx, column=3)
+        cell3.value = error["Details"]
+        cell3.font = Font(name='宋体', size=12, color='000000')
+        cell4 = ws.cell(row=row_idx, column=4)
+        cell4.value = error["Expected"]
+        cell4.font = Font(name="宋体", size=12, color="000000")
+            
+    
+    for row in ws.iter_rows(min_row=1, max_row=ws.max_row, max_col=len(column_names)):
+        for cell in row:
+            cell.border = Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'),
+                top=Side(style='thin'),
+                bottom=Side(style='thin')
+            )
+
     wb.save(output_file_path)
+
     return True
 
 
