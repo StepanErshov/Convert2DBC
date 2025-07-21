@@ -16,7 +16,9 @@ from openpyxl.styles import (
     Border, 
     Side
 )
+from openpyxl.comments import Comment
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.hyperlink import Hyperlink
 
 st.markdown(
     """
@@ -882,8 +884,9 @@ def export_validation_errors_to_excel(data_frame: pd.DataFrame, original_file: U
         if msg_name or sig_name:
             row_map[(str(msg_name).strip(), str(sig_name).strip())] = row_idx
 
+    error_locations = {}
 
-    for error in all_errors:
+    for error_idx, error in enumerate(all_errors, start=1):
         error_type = error["Error Type"]
         name = error["Message/Signal Name"].strip()
 
@@ -937,14 +940,20 @@ def export_validation_errors_to_excel(data_frame: pd.DataFrame, original_file: U
                     ws.cell(row=row_idx, column=col_idx).fill = error_fill
                     ws.cell(row=row_idx, column=col_idx).font = error_font
 
-    
-    # ws = wb["CheckResult"]
+                    error_locations.setdefault(error_idx, []).append(
+                    (row_idx, col_idx, ws.cell(row=row_idx, column=col_idx).value))
+
+                ws.cell(row=row_idx, column=col_idx).comment = Comment(
+                    f"Error: {error_type}\nDetails: {error['Details']}\nExpected: {error['Expected']}", 
+                    "Validation Tool")
 
     if "CheckResult" not in wb.sheetnames:
         wb.create_sheet("CheckResult")
     
     ws = wb["CheckResult"]
     
+    ws_check = wb["CheckResult"]
+
     header_style = {
     'fill': PatternFill(start_color="00CCFF", fill_type="solid"),
     'font': Font(name='宋体', bold=True, size=13, color='000000', italic=True),
@@ -957,7 +966,8 @@ def export_validation_errors_to_excel(data_frame: pd.DataFrame, original_file: U
         )
     }
 
-    column_names = ["Serial number", "Warning site", "Warning description", "Expected"]
+    column_names = ["Serial number", "Warning site", "Warning description", "Expected", "Location"]
+
     for col_num, name in enumerate(column_names, 1):
         cell = ws.cell(row=1, column=col_num)
         cell.value = name
@@ -991,6 +1001,26 @@ def export_validation_errors_to_excel(data_frame: pd.DataFrame, original_file: U
         cell4 = ws.cell(row=row_idx, column=4)
         cell4.value = error["Expected"]
         cell4.font = Font(name="宋体", size=12, color="000000")
+        cell5 = ws_check.cell(row=row_idx, column=5)
+    
+        locations = error_locations.get(row_idx-2, [])
+        print(locations)
+        if locations:
+            first_location = locations[0]
+            link = f"#'Matrix'!{get_column_letter(first_location[1])}{first_location[0]}"
+            cell5.value = f"Go to error ({len(locations)} locations)"
+            cell5.hyperlink = link
+            cell5.font = Font(color="0563C1", underline="single")
+            cell5.alignment = Alignment(horizontal="center", vertical="center")
+            
+            if len(locations) > 1:
+                other_locations = "\n".join(
+                    f"{get_column_letter(col)}{row}" 
+                    for row, col, _ in locations[1:]
+                )
+                cell5.comment = Comment(
+                    f"This error appears in multiple locations:\n{other_locations}", 
+                    "Validation Tool")
             
     
     for row in ws.iter_rows(min_row=1, max_row=ws.max_row, max_col=len(column_names)):
