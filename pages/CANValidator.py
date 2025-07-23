@@ -1004,7 +1004,6 @@ def export_validation_errors_to_excel(data_frame: pd.DataFrame, original_file: U
         cell5 = ws_check.cell(row=row_idx, column=5)
     
         locations = error_locations.get(row_idx-2, [])
-        print(locations)
         if locations:
             first_location = locations[0]
             link = f"#'Matrix'!{get_column_letter(first_location[1])}{first_location[0]}"
