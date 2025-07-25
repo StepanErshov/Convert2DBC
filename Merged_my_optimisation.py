@@ -163,6 +163,7 @@ def get_domain_folder_name(ecu_base, domain_short):
         "SGW-CGW" : "04.01.07.CGW,SGW,ADCU"
     }
 
+
     return domain_folder_name[domain_short]
 
 def get_ecu_folder_name(domain_folder_name, ecu_base):
