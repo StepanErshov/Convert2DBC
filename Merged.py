@@ -87,7 +87,7 @@ def process_history_sheet(wb, ecu_col_index):
     process_history_sheet_time_end = time.time() - process_history_sheet_time_start
     print("process_history_sheet_time_end", process_history_sheet_time_end)
 
-    return ecu_wb
+    return wb
 
 def identify_ecus(df):
     # Найти все ecu в предоставленной доменной матрице
@@ -117,8 +117,11 @@ def get_ecu_version(wb, ecu_col_index):
     for row_idx in range(ecu_history_ws.max_row, 1, -1):
         cell_value = ecu_history_ws.cell(row=row_idx, column=history_col_idx).value
         if ecu_name in str(cell_value):
-            ecu_version = ecu_history_ws.cell(row=row_idx, column=1).value
-            break
+            if ecu_history_ws.cell(row=row_idx, column=1).value is not None:
+                ecu_version = ecu_history_ws.cell(row=row_idx, column=1).value
+                break
+            else:
+                continue
     
     get_ecu_version_time_end = time.time() - get_ecu_version_time_start
     print("get_ecu_version_time_end", get_ecu_version_time_end)
@@ -153,59 +156,79 @@ def get_ecu_folder_name(domain_folder_name, ecu_base):
         print("Sub folder for ECU doesn't match ECU name.", )
         # st.error("Sub folder for ECU doesn't match ECU name.")
 
+def process_ecu(ecu, df, uploaded_file, domain_short):
+    """Function to process a single ECU, containing all your existing loop logic"""
+    total_start = time.time()
+
+    date_str = datetime.now().strftime("%d%m%Y")
+    ecu_col_index = {ecu: df.columns.get_loc(ecu)}
+    
+    # Get ECU base name
+    if '_' in ecu:
+        ecu_base = ecu.split("_")[0]
+    else:
+        ecu_base = ecu
+        
+    # Create copy of domain matrix to modify for this ECU
+    ecu_wb = load_workbook(uploaded_file)
+    
+    # Process matrix sheet for this ECU
+    ecu_wb = process_matrix_sheet(ecu_wb, ecu_col_index)
+    ecu_wb = process_history_sheet(ecu_wb, ecu_col_index)
+    
+    if not ecu_wb:
+        st.warning(f"🕱 'History' sheet not found in ECU {ecu}.")
+        return
+    
+    ecu_version = get_ecu_version(ecu_wb, ecu_col_index)
+    
+    # Save ECU matrix to folder
+    find_path_time_start = time.time()
+    
+    domain_folder_name = get_domain_folder_name(ecu_base, domain_short)
+    ecu_folder_name = get_ecu_folder_name(domain_folder_name, ecu_base)
+    output_ecu_filename = f"ATOM_CAN_Matrix_{ecu_version}_{date_str}_{ecu}.xlsx"
+    ecu_matrix_output_path = f"{create_directory.creator.PATH_DOC}\\{domain_folder_name}\\{ecu_folder_name}\\{output_ecu_filename}"
+    
+    find_path_time_end = time.time() - find_path_time_start
+    print("find_path_time_end", find_path_time_end)
+    
+    ecu_save_time_start = time.time()
+    ecu_wb.save(ecu_matrix_output_path)
+    ecu_save_time_end = time.time() - ecu_save_time_start
+    print("ecu_save_time_end", ecu_save_time_end)
+    
+    ecu_proccesed_time = time.time() - total_start
+    print("ecu_proccesed_time", ecu_proccesed_time)
+    return ecu
+
 if __name__ == "__main__":
     set_page_title()
     uploaded_file = get_uploaded_file()
-    print("File uploaded")
+    
     # Доменный excel получен, дальше блок обработки для получения данных и распределение по папкам 
     if uploaded_file:
         try:
+            total_time_start = time.time()
+            print("File uploaded")
             domain_short = uploaded_file.name.split('_')[3]
             df = pd.read_excel(uploaded_file, sheet_name="Matrix")
             ecus = identify_ecus(df)
-            for ecu in ecus:
-
-                total_start = time.time()
-
-                date_str = datetime.now().strftime("%d%m%Y")
-                ecu_col_index = {ecu: df.columns.get_loc(ecu)}
-                # Получить основу имени ecu
-                if '_' in ecu:
-                    ecu_base = ecu.split("_")[0]
-                else:
-                    ecu_base = ecu
-                # Создать копию доменной матрицы для ее модификации в матрицу ecu
-                ecu_wb = load_workbook(uploaded_file)
-                # Настроить лист "Matrix" под ecu
-                ecu_wb = process_matrix_sheet(ecu_wb, ecu_col_index)
-                ecu_wb = process_history_sheet(ecu_wb, ecu_col_index)
-                if not ecu_wb:
-                    st.warning(
-                        f"🕱 'History' sheet not found in ECU {ecu}."
-                    )
-                ecu_version = get_ecu_version(ecu_wb, ecu_col_index)
-                # Сохранить ecu матрицу в папку
-
-                find_path_time_start = time.time()
-
-                domain_folder_name = get_domain_folder_name(ecu_base, domain_short)
-                ecu_folder_name = get_ecu_folder_name(domain_folder_name, ecu_base)
-                output_ecu_filename = f"ATOM_CAN_MATRIX_{ecu_version}_{date_str}_{ecu}.xlsx"
-                ecu_matrix_output_path = f"{create_directory.creator.PATH_DOC}\\{domain_folder_name}\\{ecu_folder_name}\\{output_ecu_filename}"
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                # Submit all ECU processing tasks
+                futures = [executor.submit(process_ecu, ecu, df, uploaded_file, domain_short) 
+                        for ecu in ecus]
                 
-                find_path_time_end = time.time() - find_path_time_start
-                print("find_path_time_end", find_path_time_end)
-
-                ecu_save_time_start = time.time()
-
-                ecu_wb.save(ecu_matrix_output_path)
-
-                ecu_save_time_end = time.time() - ecu_save_time_start
-                print("ecu_save_time_end", ecu_save_time_end)
-
-                ecu_proccesed_time = time.time() - total_start
-                print("ecu_proccesed_time", ecu_proccesed_time)
-
+                # Wait for all tasks to complete and get results (if needed)
+                for future in concurrent.futures.as_completed(futures):
+                    try:
+                        result = future.result()
+                        # You can process results here if needed
+                    except Exception as e:
+                        print(f"An error occurred processing an ECU: {e}")
+            
+            total_time_end = time.time() - total_time_start
+            st.success(f"Proccess in {total_time_end}")
             st.success(
                 f"Domain matrix ecu split completed, obtained {len(ecus)} ECUs."
             )
