@@ -13,9 +13,6 @@ import create_directory
 # Замер времени выполнения блоков
 import time
 # Многопоточность
-import threading
-from queue import Queue
-from multiprocessing import Pool, Manager
 import concurrent.futures
 
 def set_page_title():
