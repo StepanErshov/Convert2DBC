@@ -74,9 +74,9 @@ class DirectoryCreator:
         self.PATH_DOC = custom_path
 
 
-if __name__ == "__main__":
-    creator = DirectoryCreator()
-    creator.create_directory_structure()
+# if __name__ == "__main__":
+creator = DirectoryCreator()
+creator.create_directory_structure()
 
     # creator.set_custom_path("D:\\MyCustomPath")
     # creator.set_hierarchy({"NewParent": ["Child1", "Child2"]})
