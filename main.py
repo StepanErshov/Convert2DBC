@@ -61,6 +61,8 @@ can_id_map = st.Page("pages/CAN_ID_Map.py", title="CAN ID Map", icon="🔥")
 
 bus_load = st.Page("pages/Busload_Calculation.py", title="Busload Calculation", icon="🚐")
 
+release_creater = st.Page("pages/Release_Convertor.py", title="Release Convertor", icon="🛎️")
+
 # eth_validator = st.Page(
 #     "pages/ETHValidator.py",
 #     title="ETH Validator",
@@ -77,7 +79,7 @@ pg = st.navigation(
             can_validator,
             lin_validator,
         ],
-        "Developments": [dbc2xlsx, can_id_map, bus_load],
+        "Developments": [dbc2xlsx, can_id_map, bus_load, release_creater],
     }
 )
 
