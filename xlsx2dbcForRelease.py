@@ -1007,30 +1007,52 @@ class ExcelToDBCConverter:
 
     def convert(self, output_path: str = "output.dbc") -> bool:
         """Main method convert"""
+        print(f"Starting conversion to DBC: {output_path}")
+        print(f"Excel path: {self.excel_path}")
+
+        if not os.path.exists(self.excel_path):
+            print(f"❌ Файл Excel не найден: {self.excel_path}")
+            return False
+
         try:
-            if not self.validate_input_data():
-                print("Ошибка: Входные данные не прошли проверку")
-                return False
             df, _ = self._load_excel_data()
-            grouped = df.groupby(["Message ID", "Message Name"])
-
-            for (msg_id, msg_name), group in grouped:
-                self._create_message(msg_id, msg_name, group)
-
-            # revision_lines = [f"Revision:{rev}" for rev in all_revisions]
-            # global_comment = 'CM_ "' + ",\n".join(revision_lines) + '" ;\n'
-
-            cantools.database.dump_file(self.db, output_path)
-
-            # with open(output_path, "a", encoding="utf-8") as f:
-            #     f.write("\n")
-            #     f.write(global_comment)
-
-            print(f"DBC-file successfully created: {output_path}")
-            return True
-
         except Exception as e:
-            print(f"Error during conversion: {str(e)}")
+            print(f"❌ Ошибка загрузки Excel: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return False
+
+        if df is None or df.empty:
+            print("❌ DataFrame пустой или не загружен")
+            return False
+
+        print(f"📊 Загружено {len(df)} строк из листа 'Matrix'")
+
+        if "Message ID" not in df.columns or "Message Name" not in df.columns:
+            print("❌ Нет колонок 'Message ID' или 'Message Name'")
+            return False
+
+        grouped = df.groupby(["Message ID", "Message Name"])
+        print(f"🗂 Найдено {len(grouped)} уникальных сообщений")
+
+        for (msg_id, msg_name), group in grouped:
+            print(f"📩 Создание сообщения: {msg_id} | {msg_name}")
+            success = self._create_message(msg_id, msg_name, group)
+            if not success:
+                print(f"❌ Не удалось создать сообщение: {msg_name}")
+
+        if not self.db.messages:
+            print("❌ Ни одно сообщение не было добавлено в базу данных")
+            return False
+
+        try:
+            cantools.database.dump_file(self.db, output_path)
+            print(f"✅ DBC успешно сохранён: {output_path}")
+            return True
+        except Exception as e:
+            print(f"❌ Ошибка при сохранении DBC: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return False
 
 
