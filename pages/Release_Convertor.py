@@ -177,6 +177,9 @@ def process_history_sheet(df, domain_matrix, ecu_matrices, ecu_col_index, progre
     def process_single_history_ecu(ecu_name, row_list_to_copy):
         """Process history sheet for a single ECU"""
         history_ws_matrix = ecu_matrices[ecu_name]['History']
+
+        history_ws_matrix.column_dimensions['F'].width = 50
+        history_ws_matrix.column_dimensions['G'].width = 70
         
         # Process header
         history_ws_matrix.merge_cells('A1:G1')
@@ -207,7 +210,7 @@ def process_history_sheet(df, domain_matrix, ecu_matrices, ecu_col_index, progre
                         ecu_cell.protection = data['protection']
                         ecu_cell.alignment = data['alignment']
                 
-                history_ws_matrix.row_dimensions[row_to_paste].height = 15
+                # history_ws_matrix.row_dimensions[row_to_paste].height = 15
                 row_to_paste += 1
 
         return ecu_name
