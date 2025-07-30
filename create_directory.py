@@ -53,6 +53,9 @@ class DirectoryCreator:
                 "04.01.07.02_CGW",
                 "04.01.07.03_SGW",
             ],
+            "04.01.08 Diagnostic CAN": [
+                "04.01.08.01_DTOOL",
+            ]
         }
         self.USERNAME = getpass.getuser()
         self.PATH_DOC = f"C:\\Users\\{self.USERNAME}\\Documents"

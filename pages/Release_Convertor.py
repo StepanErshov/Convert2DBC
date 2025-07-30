@@ -229,7 +229,7 @@ def process_history_sheet(df, domain_matrix, ecu_matrices, ecu_col_index, progre
             ): ecu_name
             for ecu_name, row_list_to_copy in history_rows_to_copy.items()
         }
-        
+        # print("future_to_ecu: ", future_to_ecu)
         # Process results as they complete
         for future in concurrent.futures.as_completed(future_to_ecu):
             ecu_name = future_to_ecu[future]
@@ -301,7 +301,7 @@ def get_domain_folder_name(ecu_base, domain_short):
         domain_short = "SGW-CGW"
     domain_folder_name = {
         "BD" :      "04.01.01.Body CAN",
-        "DG" :      "",
+        "DG" :      "04.01.08 Diagnostic CAN",
         "CH" :      "04.01.05.Chassis CANFD",
         "PT" :      "04.01.02.Powertrain CAN",
         "ET" :      "04.01.04.Entertainment CANFD",
@@ -374,27 +374,31 @@ def save_single_ecu(ecu_name, ecu_matrices, ecu_versions, domain_short, converte
         ecu_matrices[ecu_name].save(ecu_matrix_output_path)
         save_time = time.time() - save_time_start
         
-        if progress_callback:
-            progress_callback("saved")
+        # if progress_callback:
+        #     progress_callback("saved")
         
         # Convert to DBC
         dbc_time_start = time.time()
         dbc_path = os.path.join(full_dir_path, f"{output_ecu_filename}.dbc")
         
         # Initialize converter with the saved XLSX file
+        print("ecu_matrix_output_path: ", ecu_matrix_output_path, "\n", "ecu_name: ", ecu_name, "\n", "save_time: ", save_time, "\n", "dbc_path: ", dbc_path)
         dbc_converter = ExcelToDBCConverter(ecu_matrix_output_path)
         conversion_success = dbc_converter.convert(dbc_path)
         dbc_time = time.time() - dbc_time_start
         
-        if progress_callback:
-            progress_callback("converted")
+        # if progress_callback:
+        #     progress_callback("converted")
         
         if not conversion_success:
             return (ecu_name, save_time, None, ecu_matrix_output_path, "DBC conversion failed")
         
         return (ecu_name, save_time, dbc_time, ecu_matrix_output_path, dbc_path)
     except Exception as e:
-        return (ecu_name, None, None, None, str(e))
+        import traceback
+        print(f"❌ Ошибка при обработке ECU {ecu_name}:")
+        traceback.print_exc()
+        return (ecu_name, None, None, None, f"Exception: {repr(e)}")
 
 if __name__ == "__main__":
     set_page_title()
@@ -451,7 +455,7 @@ if __name__ == "__main__":
             status_text.text("Processing history sheets...")
             ecu_matrices = process_history_sheet(df_history, domain_matrix, ecu_matrices, ecu_col_index, progress_bar)
             if not ecu_matrices:
-                st.warning(f"🕱 'History' sheet not found in ECU {ecu}.")
+                st.warning(f"🕱 'History' sheet not found in ECU {ecu_matrices}.")
             
             status_text.text("Getting ECU versions...")
             ecu_versions = get_ecu_version(df_history, ecu_matrices)
@@ -495,7 +499,7 @@ if __name__ == "__main__":
                         ecu_versions, 
                         domain_short, 
                         ExcelToDBCConverter,
-                        update_progress
+                        None
                     ): ecu_name
                     for ecu_name in ecu_col_index
                 }
@@ -505,6 +509,7 @@ if __name__ == "__main__":
                     ecu_name = futures[future]
                     try:
                         result = future.result()
+                        print("result: ", result)
                         if result:
                             ecu_name, save_time, dbc_time, xlsx_path, dbc_path_or_error = result
                             if save_time is not None:
