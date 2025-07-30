@@ -15,6 +15,7 @@ import create_directory
 import time
 # Многопоточность
 import concurrent.futures
+import zipfile
 
 def set_page_title():
     st.title("🛎️ Release Convertor")
@@ -490,50 +491,81 @@ if __name__ == "__main__":
                 progress_bar.progress(int(progress))
             
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                # Submit all save tasks
                 futures = {
                     executor.submit(
-                        save_single_ecu, 
-                        ecu_name, 
-                        ecu_matrices, 
-                        ecu_versions, 
-                        domain_short, 
+                        save_single_ecu,
+                        ecu_name,
+                        ecu_matrices,
+                        ecu_versions,
+                        domain_short,
                         ExcelToDBCConverter,
                         None
-                    ): ecu_name
-                    for ecu_name in ecu_col_index
+                    ): ecu_name for ecu_name in ecu_col_index
                 }
-                
-                # Process results
+
                 for future in concurrent.futures.as_completed(futures):
                     ecu_name = futures[future]
                     try:
                         result = future.result()
-                        print("result: ", result)
-                        if result:
-                            ecu_name, save_time, dbc_time, xlsx_path, dbc_path_or_error = result
-                            if save_time is not None:
-                                print(f"Saved {ecu_name} in {save_time:.2f}s (XLSX) and {dbc_time:.2f}s (DBC)")
-                                print(f"XLSX: {xlsx_path}")
-                                print(f"DBC: {dbc_path_or_error}")
-                                save_results.append((ecu_name, save_time, dbc_time))
+                        if result is None:
+                            st.error(f"❌ {ecu_name}: не удалось создать матрицу")
+                            save_results.append((ecu_name, None, None, None, "Matrix creation failed"))
+                        else:
+                            if len(result) != 5:
+                                st.error(f"❌ {ecu_name}: неверное количество данных: {len(result)}")
+                                save_results.append((ecu_name, None, None, None, "Invalid result format"))
                             else:
-                                st.error(f"Failed to process {ecu_name}: {dbc_path_or_error}")
+                                save_results.append(result)
                     except Exception as e:
-                        st.error(f"Error processing {ecu_name}: {str(e)}")
-            
+                        st.error(f"❌ Ошибка при обработке {ecu_name}: {str(e)}")
+                        save_results.append((ecu_name, None, None, None, f"Exception: {str(e)}"))
+
             proccesed_time = time.time() - total_start
             print("proccesed_time", proccesed_time)
 
-            # Clear progress indicators
             progress_bar.empty()
             status_text.empty()
-            
+
             st.success(f"Domain matrix ECU split completed, obtained {len(ecu_col_index)} ECUs with DBC files.")
             st.info(f"Time spent: {proccesed_time:.2f} seconds")
             st.info(f"XLSX files saved: {len([r for r in save_results if r[1] is not None])}")
             st.info(f"DBC files generated: {len([r for r in save_results if r[2] is not None])}")
-            
+                        
+            import zipfile
+            from io import BytesIO
+
+            zip_buffer = BytesIO()
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                for result in save_results:
+                    if len(result) < 5:
+                        continue
+                    ecu_name, save_time, dbc_time, xlsx_path, dbc_path_or_error = result
+
+                    if xlsx_path and isinstance(xlsx_path, str) and os.path.exists(xlsx_path):
+                        try:
+                            relative_path = os.path.relpath(xlsx_path, create_directory.creator.PATH_DOC)
+                            zip_file.write(xlsx_path, arcname=relative_path)
+                        except Exception as e:
+                            print(f"❌ Не удалось добавить XLSX в ZIP: {e}")
+
+                    if isinstance(dbc_path_or_error, str) and os.path.exists(dbc_path_or_error):
+                        try:
+                            relative_path = os.path.relpath(dbc_path_or_error, create_directory.creator.PATH_DOC)
+                            zip_file.write(dbc_path_or_error, arcname=relative_path)
+                        except Exception as e:
+                            print(f"❌ Не удалось добавить DBC в ZIP: {e}")
+
+            zip_buffer.seek(0)
+
+            st.download_button(
+                label="📥 Скачать всё с папками (ZIP)",
+                data=zip_buffer,
+                file_name=f"Generated_CAN_Files_{ecu_name}.zip",
+                mime="application/zip",
+                disabled=zip_buffer.getbuffer().nbytes == 0
+            )
+
+
             # Show download buttons for DBC files
             for ecu_name in ecu_col_index:
                 ecu_base = ecu_name.split("_")[0] if '_' in ecu_name else ecu_name
