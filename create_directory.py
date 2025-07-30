@@ -58,7 +58,7 @@ class DirectoryCreator:
             ]
         }
         self.USERNAME = getpass.getuser()
-        self.PATH_DOC = f"C:\\Users\\{self.USERNAME}\\Documents"
+        self.PATH_DOC = f"C:\\Release Folder"
 
     def create_directory_structure(self):
         for dir, pod_dir in self.HIERARCHI.items():
